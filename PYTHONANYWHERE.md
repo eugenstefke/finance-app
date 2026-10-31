@@ -10,8 +10,9 @@ Ersetze überall `BENUTZER` durch deinen PythonAnywhere-Benutzernamen.
 **Diese NICHT** (stehen auch in `.gitignore`): `finanzen.db` (deine Daten), `.secret_key`, `.venv/`, `.idea/`.
 
 Zwei Wege:
-- **Mit Git (empfohlen):** Projekt in ein **privates** GitHub-Repository legen, dann in einer
-  PythonAnywhere-Bash-Konsole: `git clone https://github.com/…/finanz-app.git ~/finanz-app`.
+- **Mit Git (empfohlen):** In einer PythonAnywhere-Bash-Konsole das GitHub-Repository klonen:
+  `git clone https://github.com/…/finanz-app.git ~/finanz-app`. Das Repository darf öffentlich sein,
+  weil `finanzen.db` und `.secret_key` über `.gitignore` nie darin landen.
   Updates später mit `cd ~/finanz-app && git pull`.
 - **Ohne Git:** Im Reiter *Files* den Ordner `/home/BENUTZER/finanz-app` anlegen und die Dateien hochladen.
 

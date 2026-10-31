@@ -1,5 +1,7 @@
 # Finanz-App
 
+**English** | [Deutsch](README.de.md)
+
 A small, self-hosted web app for tracking income and expenses month by month.
 Built with Python, Flask and SQLite. No JavaScript framework, no build step.
 
