@@ -27,8 +27,8 @@ Gebaut mit Python, Flask und SQLite. Kein JavaScript-Framework, kein Build-Schri
 Voraussetzung: Python 3.10 oder neuer. [uv](https://docs.astral.sh/uv/) wird empfohlen, ist aber nicht nötig.
 
 ```bash
-git clone https://github.com/<dein-name>/finanz-app.git
-cd finanz-app
+git clone https://github.com/eugenstefke/finance-app.git
+cd finance-app
 
 # 1. Benutzerkonto anlegen (fragt nach Benutzername und Passwort)
 uv run set_password.py
