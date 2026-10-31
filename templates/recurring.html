@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Wiederkehrende Buchungen · Finanzen{% endblock %}
+
+{% block content %}
+<h1>Wiederkehrende Buchungen</h1>
+<p class="gedimmt">Werden im gewählten Rhythmus automatisch in jeden passenden Monat eingetragen, z.B. Gehalt, Miete, Versicherungen oder Abos.</p>
+
+<section class="karte">
+  <h2>Neu anlegen</h2>
+  <form method="post" class="formular">
+    {{ csrf_field() }}
+    <div class="typwahl">
+      <label><input type="radio" name="typ" value="ausgabe" checked> Ausgabe</label>
+      <label><input type="radio" name="typ" value="einnahme"> Einnahme</label>
+    </div>
+    <input type="text" name="beschreibung" placeholder="Beschreibung, z.B. Miete" required>
+    <input type="text" name="kategorie" placeholder="Kategorie (optional)">
+    <input type="text" name="betrag" placeholder="Betrag, z.B. 850,00" inputmode="decimal" required>
+    <label class="feld">Rhythmus
+      <select name="intervall_monate">
+        {% for months, label in RHYTHMS.items() %}
+          <option value="{{ months }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="feld">Startdatum
+      <input type="date" name="start_datum" value="{{ today }}" required>
+    </label>
+    <label class="feld">Enddatum (optional)
+      <input type="date" name="end_datum">
+    </label>
+    <button type="submit" class="btn primaer">Speichern</button>
+  </form>
+</section>
+
+<section class="karte">
+  <h2>Alle wiederkehrenden Buchungen</h2>
+  {% if series_list %}
+  <table class="liste">
+    <thead>
+      <tr><th>Beschreibung</th><th>Rhythmus</th><th>Zeitraum</th><th class="rechts">Betrag</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for r in series_list %}
+      <tr>
+        <td>{{ r.beschreibung }}{% if r.kategorie %} <span class="gedimmt">· {{ r.kategorie }}</span>{% endif %}</td>
+        <td>{{ r.intervall_monate | rhythm }}</td>
+        <td>
+          {{ r.start_datum | date }} – {{ r.end_datum | date if r.end_datum else 'unbegrenzt' }}
+          {% if r.end_datum %}<br><span class="gedimmt klein">{{ r | occurrence_count }} Buchungen</span>{% endif %}
+        </td>
+        <td class="rechts {{ 'plus' if r.typ == 'einnahme' else 'minus' }}">
+          {{ '+' if r.typ == 'einnahme' else '−' }} {{ r.betrag_cent | eur }}
+        </td>
+        <td class="aktionen">
+          <form method="post" action="{{ url_for('end_recurring', rid=r.id) }}" class="inline">
+            {{ csrf_field() }}
+            <input type="date" name="end_datum" value="{{ r.end_datum or today }}" required
+                   title="Letzter Tag, bis zu dem die Buchung zählt">
+            <button type="submit" class="link">beenden</button>
+          </form>
+          <form method="post" action="{{ url_for('delete_recurring', rid=r.id) }}"
+                onsubmit="return confirm('Komplett löschen? Die Buchung verschwindet dann auch aus allen vergangenen Monaten. Zum Kündigen besser „beenden“ nutzen.')">
+            {{ csrf_field() }}
+            <button type="submit" class="link gefahr">löschen</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="gedimmt">Noch keine wiederkehrenden Buchungen.</p>
+  {% endif %}
+</section>
+{% endblock %}

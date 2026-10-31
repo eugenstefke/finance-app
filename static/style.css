@@ -1,0 +1,207 @@
+:root {
+  --bg: #f4f5f7;
+  --karte: #ffffff;
+  --text: #1f2430;
+  --gedimmt: #6b7280;
+  --rand: #e3e5ea;
+  --primaer: #2f6fed;
+  --plus: #138a4b;
+  --minus: #c53030;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1.2rem;
+  background: var(--karte);
+  border-bottom: 1px solid var(--rand);
+}
+.brand { font-weight: 700; text-decoration: none; color: var(--text); }
+.topbar nav a {
+  margin-left: 1rem;
+  text-decoration: none;
+  color: var(--gedimmt);
+}
+.topbar nav a.aktiv { color: var(--primaer); font-weight: 600; }
+.topbar nav { display: flex; align-items: center; }
+.topbar .abmelden { display: inline; margin-left: 1rem; }
+.topbar .abmelden .link { color: var(--gedimmt); }
+
+/* Login */
+.login { max-width: 380px; margin: 3rem auto; }
+.login h1 { margin-bottom: 1rem; }
+.formular.senkrecht { flex-direction: column; align-items: stretch; }
+.formular.senkrecht .feld input { padding: 0.5rem 0.6rem; border: 1px solid var(--rand); border-radius: 6px; font: inherit; color: var(--text); }
+pre { background: var(--bg); padding: 0.6rem 0.8rem; border-radius: 6px; }
+
+main { max-width: 900px; margin: 0 auto; padding: 1.2rem; }
+
+h1 { margin: 0; font-size: 1.6rem; }
+h2 { margin: 0 0 0.8rem; font-size: 1.1rem; }
+
+.gedimmt { color: var(--gedimmt); }
+.plus { color: var(--plus); }
+.minus { color: var(--minus); }
+.rechts { text-align: right; white-space: nowrap; }
+
+/* Month navigation */
+.monatsnav {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+.monatsnav h1 { min-width: 12rem; text-align: center; }
+
+/* Tiles */
+.kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+.kachel {
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.kachel .label { font-size: 0.85rem; color: var(--gedimmt); }
+.kachel .wert { font-size: 1.3rem; font-weight: 600; }
+.kachel.haupt.positiv { background: #e8f6ee; border-color: #b6e2c8; }
+.kachel.haupt.positiv .wert { color: var(--plus); }
+.kachel.haupt.negativ { background: #fdecec; border-color: #f3c0c0; }
+.kachel.haupt.negativ .wert { color: var(--minus); }
+.kachel.haupt .wert { font-size: 1.6rem; }
+
+/* Cards & forms */
+.karte {
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.2rem;
+}
+.formular {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+.formular input[type=text],
+.formular input[type=date],
+.formular input[type=month],
+.formular input[type=number] {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  font: inherit;
+}
+.formular input[name=beschreibung] { flex: 1 1 200px; }
+.formular .feld { display: flex; flex-direction: column; font-size: 0.8rem; color: var(--gedimmt); gap: 0.2rem; }
+.typwahl { display: flex; gap: 0.8rem; width: 100%; }
+
+.btn {
+  display: inline-block;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  background: var(--karte);
+  color: var(--text);
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--primaer); }
+.btn.primaer { background: var(--primaer); color: #fff; border-color: var(--primaer); }
+.btn.klein { font-size: 0.85rem; padding: 0.3rem 0.7rem; }
+
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--primaer);
+  cursor: pointer;
+}
+button.link.gefahr { color: var(--minus); }
+
+/* Tables */
+.liste { width: 100%; border-collapse: collapse; }
+.liste th, .liste td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--rand); text-align: left; }
+.liste th { font-size: 0.8rem; color: var(--gedimmt); font-weight: 500; }
+.liste th.rechts, .liste td.rechts { text-align: right; }
+.liste tbody.tag + tbody.tag .tageskopf th { padding-top: 1.2rem; }
+.tageskopf th {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border-bottom: 2px solid var(--rand);
+}
+.tageskopf th.plus { color: var(--plus); }
+.tageskopf th.minus { color: var(--minus); }
+.aktionen { white-space: nowrap; text-align: right; font-size: 0.85rem; }
+.aktionen a { color: var(--primaer); text-decoration: none; }
+.aktionen form { display: inline; margin-left: 0.6rem; }
+.aktionen input[type=date] { font: inherit; font-size: 0.8rem; padding: 0.15rem; }
+.klein { font-size: 0.8rem; }
+
+/* Recurring toggle and dialog */
+.wk-schalter { margin-left: auto; font-weight: 500; }
+.wk-info {
+  width: 100%;
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  background: #eef3fe;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.formular select {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  font: inherit;
+  background: var(--karte);
+}
+.fenster {
+  border: none;
+  border-radius: var(--radius);
+  padding: 1.2rem 1.4rem;
+  width: min(420px, 92vw);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.fenster::backdrop { background: rgba(20, 24, 33, 0.45); }
+.fenster h3 { margin: 0 0 1rem; }
+.fenster .feld { margin-bottom: 0.8rem; font-size: 0.85rem; }
+.fenster .feld input, .fenster .feld select { width: 100%; color: var(--text); }
+.fenster-aktionen { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
+.btn.gefahr { color: var(--minus); margin-left: auto; }
+.btn.gefahr:hover { border-color: var(--minus); }
+.umfang-wahl { display: flex; flex-direction: column; gap: 0.5rem; }
+.umfang-wahl .btn { text-align: left; }
+.fehlertext { color: var(--minus); font-size: 0.9rem; }
+
+/* Messages */
+.flash { padding: 0.6rem 0.9rem; border-radius: 6px; margin-bottom: 1rem; }
+.flash.ok { background: #e8f6ee; color: var(--plus); }
+.flash.fehler { background: #fdecec; color: var(--minus); }
+
+@media (max-width: 600px) {
+  .liste td.kategorie { display: none; }
+  .monatsnav h1 { font-size: 1.3rem; min-width: 0; flex: 1; }
+}

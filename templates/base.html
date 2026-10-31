@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Finanzen{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">💶 Finanzen</a>
+    {% if g.user %}
+    <nav>
+      <a href="{{ url_for('index') }}" {% if request.endpoint == 'show_month' %}class="aktiv"{% endif %}>Monat</a>
+      <a href="{{ url_for('recurring') }}" {% if request.endpoint == 'recurring' %}class="aktiv"{% endif %}>Wiederkehrend</a>
+      {% if not g.user.ist_demo %}
+      <a href="{{ url_for('auth.change_password') }}" {% if request.endpoint == 'auth.change_password' %}class="aktiv"{% endif %} title="Passwort ändern ({{ g.user.benutzername }})">🔑</a>
+      {% endif %}
+      <form method="post" action="{{ url_for('auth.logout') }}" class="abmelden">
+        {{ csrf_field() }}
+        <button type="submit" class="link">Abmelden</button>
+      </form>
+    </nav>
+    {% endif %}
+  </header>
+
+  <main>
+    {% if g.user and g.user.ist_demo %}
+      <div class="flash">Demo-Zugang: Alle Eingaben sind für andere Besucher sichtbar und werden täglich zurückgesetzt.</div>
+    {% endif %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, text in messages %}
+        <div class="flash {{ category }}">{{ text }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

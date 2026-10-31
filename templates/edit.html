@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Termin' if series else 'Buchung' }} bearbeiten · Finanzen{% endblock %}
+
+{% block content %}
+<section class="karte">
+  <h2>{{ 'Termin' if series else 'Buchung' }} bearbeiten</h2>
+  {% if series %}
+    <p class="wk-info">
+      🔁 Teil der Serie „{{ series.beschreibung }}“ · {{ series.intervall_monate | rhythm }} ·
+      Termin {{ number + 1 }}{% if count %} von {{ count }}{% endif %}
+    </p>
+  {% endif %}
+  <form method="post" class="formular" id="bearbeiten">
+    {{ csrf_field() }}
+    <div class="typwahl">
+      <label><input type="radio" name="typ" value="ausgabe" {{ 'checked' if entry.typ == 'ausgabe' }}> Ausgabe</label>
+      <label><input type="radio" name="typ" value="einnahme" {{ 'checked' if entry.typ == 'einnahme' }}> Einnahme</label>
+    </div>
+    <input type="date" name="datum" value="{{ entry.datum }}" required>
+    <input type="text" name="beschreibung" value="{{ entry.beschreibung }}" required>
+    <input type="text" name="kategorie" value="{{ entry.kategorie }}" placeholder="Kategorie (optional)">
+    <input type="text" name="betrag" value="{{ entry.betrag_cent | input_amount }}" inputmode="decimal" required>
+
+    {% if series %}
+      <input type="hidden" name="aktion" id="aktion" value="speichern">
+      <button type="button" class="btn primaer" id="speichern">Speichern</button>
+      <a class="btn" href="{{ url_for('show_month', month=entry.datum[:7]) }}">Abbrechen</a>
+      <button type="button" class="btn gefahr" id="loeschen">Löschen</button>
+
+      <dialog id="umfang-dialog" class="fenster">
+        <h3 id="umfang-titel">Welche Termine sollen geändert werden?</h3>
+        <div class="umfang-wahl">
+          {% for value, label in scopes.items() %}
+            <button type="submit" name="umfang" value="{{ value }}" class="btn" formnovalidate>
+              {{ label[:1] | upper }}{{ label[1:] }}
+            </button>
+          {% endfor %}
+        </div>
+        <p class="gedimmt klein">Bei mehreren Terminen werden Beschreibung, Kategorie, Betrag und Art übernommen.
+          Ein verschobenes Datum verschiebt alle betroffenen Termine gleich.</p>
+        <div class="fenster-aktionen">
+          <button type="button" class="btn" id="umfang-abbrechen">Abbrechen</button>
+        </div>
+      </dialog>
+    {% else %}
+      <button type="submit" class="btn primaer">Speichern</button>
+      <a class="btn" href="{{ url_for('show_month', month=entry.datum[:7]) }}">Abbrechen</a>
+    {% endif %}
+  </form>
+</section>
+
+{% if series %}
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const form = $("bearbeiten"), dialog = $("umfang-dialog");
+
+  function ask(action, title) {
+    $("aktion").value = action;
+    $("umfang-titel").textContent = title;
+    dialog.showModal();
+  }
+
+  $("speichern").addEventListener("click", () => {
+    if (form.reportValidity()) ask("speichern", "Welche Termine sollen geändert werden?");
+  });
+  $("loeschen").addEventListener("click", () => ask("loeschen", "Welche Termine sollen gelöscht werden?"));
+  $("umfang-abbrechen").addEventListener("click", () => dialog.close());
+})();
+</script>
+{% endif %}
+{% endblock %}

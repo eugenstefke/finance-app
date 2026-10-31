@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}{{ summary.month | month_name }} · Finanzen{% endblock %}
+
+{% block content %}
+<div class="monatsnav">
+  <a class="btn" href="{{ url_for('show_month', month=prev_month) }}" title="Vormonat">‹</a>
+  <h1>{{ summary.month | month_name }}</h1>
+  <a class="btn" href="{{ url_for('show_month', month=next_month) }}" title="Nächster Monat">›</a>
+  {% if not is_current %}
+    <a class="btn klein" href="{{ url_for('index') }}">Heute</a>
+  {% endif %}
+</div>
+
+<section class="kacheln">
+  <div class="kachel">
+    <span class="label">Übertrag aus Vormonat</span>
+    <span class="wert {{ 'minus' if summary.carry_over < 0 }}">{{ summary.carry_over | eur }}</span>
+  </div>
+  <div class="kachel">
+    <span class="label">Einnahmen</span>
+    <span class="wert plus">+ {{ summary.income | eur }}</span>
+  </div>
+  <div class="kachel">
+    <span class="label">Ausgaben</span>
+    <span class="wert minus">− {{ summary.expenses | eur }}</span>
+  </div>
+  <div class="kachel haupt {{ 'negativ' if summary.available < 0 else 'positiv' }}">
+    <span class="label">Noch verfügbar</span>
+    <span class="wert">{{ summary.available | eur }}</span>
+  </div>
+</section>
+
+<section class="karte">
+  <h2>Neue Buchung</h2>
+  <form method="post" action="{{ url_for('new_transaction') }}" class="formular">
+    {{ csrf_field() }}
+    <div class="typwahl">
+      <label><input type="radio" name="typ" value="ausgabe" checked> Ausgabe</label>
+      <label><input type="radio" name="typ" value="einnahme"> Einnahme</label>
+      <label class="wk-schalter"><input type="checkbox" name="wiederkehrend" value="1" id="wk-check"> 🔁 Wiederkehrende Buchung</label>
+    </div>
+    <input type="date" name="datum" id="datum" value="{{ default_date }}" required>
+    <input type="text" name="beschreibung" placeholder="Beschreibung, z.B. Einkauf" required>
+    <input type="text" name="kategorie" placeholder="Kategorie (optional)">
+    <input type="text" name="betrag" placeholder="Betrag, z.B. 49,90" inputmode="decimal" required>
+    <button type="submit" class="btn primaer">Speichern</button>
+    <p class="wk-info" id="wk-info" hidden>
+      🔁 <span id="wk-text"></span>
+      <button type="button" class="link" id="wk-aendern">ändern</button>
+    </p>
+
+    <dialog id="wk-dialog" class="fenster">
+      <h3>🔁 Wiederkehrende Buchung</h3>
+      <label class="feld">Rhythmus
+        <select name="intervall_monate" id="wk-rhythmus">
+          {% for months, label in RHYTHMS.items() %}
+            <option value="{{ months }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="feld">Startdatum (erste Zahlung)
+        <input type="date" name="start_datum" id="wk-start">
+      </label>
+      <label class="feld">Enddatum (optional, leer = unbegrenzt)
+        <input type="date" name="end_datum" id="wk-ende">
+      </label>
+      <p class="gedimmt" id="wk-vorschau"></p>
+      <p class="fehlertext" id="wk-fehler" hidden></p>
+      <div class="fenster-aktionen">
+        <button type="button" class="btn" id="wk-abbrechen">Abbrechen</button>
+        <button type="button" class="btn primaer" id="wk-ok">Übernehmen</button>
+      </div>
+    </dialog>
+  </form>
+</section>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const check = $("wk-check"), dialog = $("wk-dialog"), dateInput = $("datum");
+  const rhythm = $("wk-rhythmus"), start = $("wk-start"), end = $("wk-ende");
+  let accepted = false;
+
+  const toGerman = iso => iso.split("-").reverse().join(".");
+  const pad = n => String(n).padStart(2, "0");
+
+  // All payment dates between start and end (same logic as finance.py)
+  function occurrences() {
+    if (!start.value || !end.value || end.value < start.value) return null;
+    const [startYear, startMonth, startDay] = start.value.split("-").map(Number);
+    const step = Number(rhythm.value), dates = [];
+    for (let i = 0; dates.length < 1000; i += step) {
+      const index = startYear * 12 + startMonth - 1 + i, y = Math.floor(index / 12), m = index % 12 + 1;
+      const day = Math.min(startDay, new Date(y, m, 0).getDate());
+      const iso = `${y}-${pad(m)}-${pad(day)}`;
+      if (iso > end.value) break;
+      dates.push(iso);
+    }
+    return dates;
+  }
+
+  function describe() {
+    let text = `${rhythm.selectedOptions[0].text} ab ${toGerman(start.value)}`;
+    const dates = occurrences();
+    if (end.value) text += ` bis ${toGerman(end.value)}`;
+    text += dates ? ` · ${dates.length} Buchungen werden eingetragen` : " · ohne Enddatum";
+    return text;
+  }
+
+  function preview() {
+    $("wk-fehler").hidden = true;
+    $("wk-vorschau").textContent = start.value ? describe() : "";
+  }
+
+  function openDialog() {
+    if (!start.value) start.value = dateInput.value;
+    preview();
+    dialog.showModal();
+  }
+
+  function setActive(active) {
+    accepted = active;
+    check.checked = active;
+    dateInput.disabled = active;   // the date then comes from the start date
+    dateInput.hidden = active;
+    $("wk-info").hidden = !active;
+    if (active) $("wk-text").textContent = describe();
+  }
+
+  function cancel() {
+    dialog.close();
+    check.checked = accepted;
+  }
+
+  check.addEventListener("change", () => check.checked ? openDialog() : setActive(false));
+  $("wk-aendern").addEventListener("click", openDialog);
+  $("wk-abbrechen").addEventListener("click", cancel);
+  dialog.addEventListener("cancel", e => { e.preventDefault(); cancel(); });
+  [rhythm, start, end].forEach(field => field.addEventListener("input", preview));
+
+  $("wk-ok").addEventListener("click", () => {
+    const error = !start.value ? "Bitte ein Startdatum wählen."
+      : end.value && end.value < start.value ? "Das Enddatum darf nicht vor dem Startdatum liegen."
+      : null;
+    if (error) {
+      $("wk-fehler").textContent = error;
+      $("wk-fehler").hidden = false;
+      return;
+    }
+    dialog.close();
+    setActive(true);
+  });
+})();
+</script>
+
+<section class="karte">
+  <h2>Buchungen</h2>
+  {% if summary.entries %}
+  <table class="liste">
+    {% for day, day_entries in summary.entries | groupby('datum') %}
+    {% set balance = day_entries | day_total %}
+    <tbody class="tag">
+      <tr class="tageskopf">
+        <th colspan="2">{{ day | day_name }}</th>
+        <th class="rechts {{ 'plus' if balance >= 0 else 'minus' }}">{{ '+' if balance >= 0 else '−' }} {{ balance | abs | eur }}</th>
+        <th></th>
+      </tr>
+    {% for entry in day_entries %}
+      <tr>
+        <td>{% if entry.is_recurring %}<span title="Wiederkehrend">🔁</span> {% endif %}{{ entry.beschreibung }}{% if entry.is_recurring %} <span class="gedimmt klein">· {{ entry.intervall_monate | rhythm }}{% if entry.is_changed %} · einzeln geändert{% endif %}</span>{% endif %}</td>
+        <td class="gedimmt kategorie">{{ entry.kategorie }}</td>
+         <td class="rechts {{ 'plus' if entry.typ == 'einnahme' else 'minus' }}">
+          {{ '+' if entry.typ == 'einnahme' else '−' }} {{ entry.betrag_cent | eur }}
+        </td>
+        <td class="aktionen">
+          {% if entry.is_recurring %}
+            <a href="{{ url_for('edit_occurrence', rid=entry.id, number=entry.number) }}">bearbeiten</a>
+          {% else %}
+            <a href="{{ url_for('edit_transaction', tid=entry.id) }}">bearbeiten</a>
+            <form method="post" action="{{ url_for('delete_transaction', tid=entry.id) }}"
+                  onsubmit="return confirm('Buchung wirklich löschen?')">
+              {{ csrf_field() }}
+              <button type="submit" class="link gefahr">löschen</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    {% endfor %}
+  </table>
+  {% else %}
+    <p class="gedimmt">Keine Buchungen in diesem Monat.</p>
+  {% endif %}
+</section>
+{% endblock %}

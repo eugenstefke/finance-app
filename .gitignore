@@ -1,0 +1,10 @@
+# Personal data and secrets – never upload or commit
+finanzen.db
+finanzen.db-journal
+.secret_key
+
+# Environment and tools
+.venv/
+__pycache__/
+.pytest_cache/
+.idea/
