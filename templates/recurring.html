@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import trash %}
 {% block title %}Wiederkehrende Buchungen · Finanzen{% endblock %}
 
 {% block content %}
@@ -10,8 +11,10 @@
   <form method="post" class="formular">
     {{ csrf_field() }}
     <div class="typwahl">
-      <label><input type="radio" name="typ" value="ausgabe" checked> Ausgabe</label>
-      <label><input type="radio" name="typ" value="einnahme"> Einnahme</label>
+      <div class="segment" role="radiogroup" aria-label="Art der Buchung">
+        <label><input type="radio" name="typ" value="ausgabe" checked><span>Ausgabe</span></label>
+        <label><input type="radio" name="typ" value="einnahme"><span>Einnahme</span></label>
+      </div>
     </div>
     <input type="text" name="beschreibung" placeholder="Beschreibung, z.B. Miete" required>
     <input type="text" name="kategorie" placeholder="Kategorie (optional)">
@@ -49,9 +52,7 @@
           {{ r.start_datum | date }} – {{ r.end_datum | date if r.end_datum else 'unbegrenzt' }}
           {% if r.end_datum %}<br><span class="gedimmt klein">{{ r | occurrence_count }} Buchungen</span>{% endif %}
         </td>
-        <td class="rechts {{ 'plus' if r.typ == 'einnahme' else 'minus' }}">
-          {{ '+' if r.typ == 'einnahme' else '−' }} {{ r.betrag_cent | eur }}
-        </td>
+        <td class="rechts"><span class="betrag {{ 'plus' if r.typ == 'einnahme' else 'minus' }}">{{ '+' if r.typ == 'einnahme' else '−' }} {{ r.betrag_cent | eur }}</span></td>
         <td class="aktionen">
           <form method="post" action="{{ url_for('end_recurring', rid=r.id) }}" class="inline">
             {{ csrf_field() }}
@@ -60,9 +61,9 @@
             <button type="submit" class="link">beenden</button>
           </form>
           <form method="post" action="{{ url_for('delete_recurring', rid=r.id) }}"
-                onsubmit="return confirm('Komplett löschen? Die Buchung verschwindet dann auch aus allen vergangenen Monaten. Zum Kündigen besser „beenden“ nutzen.')">
+                onsubmit="return confirm('Komplett löschen? Die Buchung verschwindet dann auch aus allen vergangenen Monaten.')">
             {{ csrf_field() }}
-            <button type="submit" class="link gefahr">löschen</button>
+            <button type="submit" class="link gefahr icon-btn" title="Komplett löschen" aria-label="Komplett löschen">{{ trash() }}</button>
           </form>
         </td>
       </tr>

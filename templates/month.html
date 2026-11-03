@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% from "_icons.html" import grip, pencil, trash %}
 {% block title %}{{ summary.month | month_name }} · Finanzen{% endblock %}
 
 {% block content %}
 <div class="monatsnav">
-  <a class="btn" href="{{ url_for('show_month', month=prev_month) }}" title="Vormonat">‹</a>
+  <a class="btn" href="{{ url_for('show_month', month=prev_month) }}" title="Vormonat" data-zielmonat="{{ prev_month }}">‹</a>
   <h1>{{ summary.month | month_name }}</h1>
-  <a class="btn" href="{{ url_for('show_month', month=next_month) }}" title="Nächster Monat">›</a>
+  <a class="btn" href="{{ url_for('show_month', month=next_month) }}" title="Nächster Monat" data-zielmonat="{{ next_month }}">›</a>
   {% if not is_current %}
     <a class="btn klein" href="{{ url_for('index') }}">Heute</a>
   {% endif %}
@@ -30,14 +31,29 @@
   </div>
 </section>
 
+<script>
+  // Apply the display options before the list is drawn (no flicker)
+  for (const option of ["tagessumme", "tagessaldo"])
+    document.documentElement.classList.toggle("zeige-" + option, localStorage.getItem("zeige-" + option) === "1");
+</script>
+
 <section class="karte">
-  <h2>Neue Buchung</h2>
+  <div class="karte-kopf">
+    <h2>Neue Buchung</h2>
+    <div class="anzeige-optionen">
+      <span class="gedimmt">Anzeigen:</span>
+      <label><input type="checkbox" data-option="tagessumme"> Tagessumme</label>
+      <label><input type="checkbox" data-option="tagessaldo"> Tagessaldo</label>
+    </div>
+  </div>
   <form method="post" action="{{ url_for('new_transaction') }}" class="formular">
     {{ csrf_field() }}
     <div class="typwahl">
-      <label><input type="radio" name="typ" value="ausgabe" checked> Ausgabe</label>
-      <label><input type="radio" name="typ" value="einnahme"> Einnahme</label>
-      <label class="wk-schalter"><input type="checkbox" name="wiederkehrend" value="1" id="wk-check"> 🔁 Wiederkehrende Buchung</label>
+      <div class="segment" role="radiogroup" aria-label="Art der Buchung">
+        <label><input type="radio" name="typ" value="ausgabe" checked><span>Ausgabe</span></label>
+        <label><input type="radio" name="typ" value="einnahme"><span>Einnahme</span></label>
+      </div>
+      <label class="schalter wk-schalter"><input type="checkbox" role="switch" name="wiederkehrend" value="1" id="wk-check"><span class="schalter-bahn"></span> Wiederkehrende Buchung</label>
     </div>
     <input type="date" name="datum" id="datum" value="{{ default_date }}" required>
     <input type="text" name="beschreibung" placeholder="Beschreibung, z.B. Einkauf" required>
@@ -45,12 +61,12 @@
     <input type="text" name="betrag" placeholder="Betrag, z.B. 49,90" inputmode="decimal" required>
     <button type="submit" class="btn primaer">Speichern</button>
     <p class="wk-info" id="wk-info" hidden>
-      🔁 <span id="wk-text"></span>
+      <span id="wk-text"></span>
       <button type="button" class="link" id="wk-aendern">ändern</button>
     </p>
 
     <dialog id="wk-dialog" class="fenster">
-      <h3>🔁 Wiederkehrende Buchung</h3>
+      <h3>Wiederkehrende Buchung</h3>
       <label class="feld">Rhythmus
         <select name="intervall_monate" id="wk-rhythmus">
           {% for months, label in RHYTHMS.items() %}
@@ -75,6 +91,15 @@
 </section>
 
 <script>
+document.querySelectorAll(".anzeige-optionen input").forEach(box => {
+  const key = "zeige-" + box.dataset.option;
+  box.checked = localStorage.getItem(key) === "1";
+  box.addEventListener("change", () => {
+    localStorage.setItem(key, box.checked ? "1" : "0");
+    document.documentElement.classList.toggle(key, box.checked);
+  });
+});
+
 (() => {
   const $ = id => document.getElementById(id);
   const check = $("wk-check"), dialog = $("wk-dialog"), dateInput = $("datum");
@@ -154,35 +179,66 @@
 </script>
 
 <section class="karte">
-  <h2>Buchungen</h2>
+  <div class="karte-kopf">
+    <h2>Buchungen</h2>
+    {% if summary.entries %}<span class="gedimmt klein">Zum Verschieben am {{ grip() }} auf einen anderen Tag ziehen (oder auf ‹ › für den Vor-/Folgemonat)</span>{% endif %}
+  </div>
   {% if summary.entries %}
+  <dialog id="serie-loeschen-dialog" class="fenster">
+    <form method="post" id="serie-loeschen-form">
+      {{ csrf_field() }}
+      <input type="hidden" name="aktion" value="loeschen">
+      <h3>„<span id="serie-loeschen-name"></span>“ löschen</h3>
+      <p class="gedimmt klein">Welche Termine dieser wiederkehrenden Buchung sollen gelöscht werden?</p>
+      <div class="umfang-wahl">
+        {% for value, label in scopes.items() %}
+          <button type="submit" name="umfang" value="{{ value }}" class="btn">{{ label[:1] | upper }}{{ label[1:] }}</button>
+        {% endfor %}
+      </div>
+      <p class="gedimmt klein">„Alle Termine“ entfernt die Buchung auch aus vergangenen Monaten.</p>
+      <div class="fenster-aktionen">
+        <button type="button" class="btn" id="serie-loeschen-abbrechen">Abbrechen</button>
+      </div>
+    </form>
+  </dialog>
+  <form id="verschieben" method="post" action="{{ url_for('move_entry') }}" hidden>
+    {{ csrf_field() }}
+    <input name="art"><input name="id"><input name="nummer"><input name="datum">
+  </form>
   <table class="liste">
     {% for day, day_entries in summary.entries | groupby('datum') %}
     {% set balance = day_entries | day_total %}
-    <tbody class="tag">
+    <tbody class="tag" data-datum="{{ day }}">
       <tr class="tageskopf">
-        <th colspan="2">{{ day | day_name }}</th>
-        <th class="rechts {{ 'plus' if balance >= 0 else 'minus' }}">{{ '+' if balance >= 0 else '−' }} {{ balance | abs | eur }}</th>
-        <th></th>
+        {% set day_end = summary.day_balances[day] %}
+        <th class="tagesname">{{ day | day_name }}</th>
+        <th class="tagessaldo kategorie" title="Kontostand nach diesem Tag"><span class="betrag saldo">{{ day_end | eur }}</span></th>
+        <th class="rechts tagessumme"><span class="betrag {{ 'plus' if balance >= 0 else 'minus' }}">{{ '+' if balance >= 0 else '−' }} {{ balance | abs | eur }}</span></th>
+        {# On phones the category column is hidden; the balance then sits in the last column #}
+        <th class="rechts tagessaldo nur-mobil" title="Kontostand nach diesem Tag"><span class="betrag saldo">{{ day_end | eur }}</span></th>
       </tr>
     {% for entry in day_entries %}
-      <tr>
-        <td>{% if entry.is_recurring %}<span title="Wiederkehrend">🔁</span> {% endif %}{{ entry.beschreibung }}{% if entry.is_recurring %} <span class="gedimmt klein">· {{ entry.intervall_monate | rhythm }}{% if entry.is_changed %} · einzeln geändert{% endif %}</span>{% endif %}</td>
+      <tr class="eintrag" data-art="{{ 'serie' if entry.is_recurring else 'buchung' }}" data-id="{{ entry.id }}" data-nummer="{{ entry.number if entry.is_recurring else '' }}" data-datum="{{ entry.datum }}">
+        <td><span class="beschreibung">{{ entry.beschreibung }}</span>{% if entry.is_recurring %} <span class="gedimmt klein">· {{ entry.intervall_monate | rhythm }}{% if entry.is_changed %} · einzeln geändert{% endif %}</span>{% endif %}</td>
         <td class="gedimmt kategorie">{{ entry.kategorie }}</td>
-         <td class="rechts {{ 'plus' if entry.typ == 'einnahme' else 'minus' }}">
-          {{ '+' if entry.typ == 'einnahme' else '−' }} {{ entry.betrag_cent | eur }}
-        </td>
+        <td class="rechts"><span class="betrag {{ 'plus' if entry.typ == 'einnahme' else 'minus' }}">{{ '+' if entry.typ == 'einnahme' else '−' }} {{ entry.betrag_cent | eur }}</span></td>
         <td class="aktionen">
+          <div class="symbolleiste">
           {% if entry.is_recurring %}
-            <a href="{{ url_for('edit_occurrence', rid=entry.id, number=entry.number) }}">bearbeiten</a>
+            <a class="icon-btn" href="{{ url_for('edit_occurrence', rid=entry.id, number=entry.number) }}" title="Bearbeiten" aria-label="Bearbeiten">{{ pencil() }}</a>
+            <button type="button" class="link gefahr icon-btn serie-loeschen" title="Löschen" aria-label="Löschen"
+                    data-url="{{ url_for('edit_occurrence', rid=entry.id, number=entry.number) }}"
+                    data-name="{{ entry.beschreibung }}">{{ trash() }}</button>
           {% else %}
-            <a href="{{ url_for('edit_transaction', tid=entry.id) }}">bearbeiten</a>
+            <a class="icon-btn" href="{{ url_for('edit_transaction', tid=entry.id) }}" title="Bearbeiten" aria-label="Bearbeiten">{{ pencil() }}</a>
             <form method="post" action="{{ url_for('delete_transaction', tid=entry.id) }}"
                   onsubmit="return confirm('Buchung wirklich löschen?')">
               {{ csrf_field() }}
-              <button type="submit" class="link gefahr">löschen</button>
+              <button type="submit" class="link gefahr icon-btn" title="Löschen" aria-label="Löschen">{{ trash() }}</button>
             </form>
           {% endif %}
+          <span class="griff icon-btn" title="Ziehen zum Verschieben">{{ grip() }}</span>
+          </div>
         </td>
       </tr>
     {% endfor %}
@@ -193,4 +249,95 @@
     <p class="gedimmt">Keine Buchungen in diesem Monat.</p>
   {% endif %}
 </section>
+
+<script>
+// Delete a recurring booking: ask which occurrences
+(() => {
+  const dialog = document.getElementById("serie-loeschen-dialog");
+  if (!dialog) return;
+  document.querySelectorAll(".serie-loeschen").forEach(button => button.addEventListener("click", () => {
+    document.getElementById("serie-loeschen-form").action = button.dataset.url;
+    document.getElementById("serie-loeschen-name").textContent = button.dataset.name;
+    dialog.showModal();
+  }));
+  document.getElementById("serie-loeschen-abbrechen").addEventListener("click", () => dialog.close());
+})();
+
+// Drag & drop: grab a booking by its handle and drop it on another day or on ‹ ›
+(() => {
+  const form = document.getElementById("verschieben");
+  if (!form) return;
+  let drag = null;
+
+  const daysIn = month => { const [y, m] = month.split("-").map(Number); return new Date(y, m, 0).getDate(); };
+
+  function targetDate(element) {
+    const day = element && element.closest(".liste tbody.tag");
+    if (day) return { element: day, date: day.dataset.datum };
+    const arrow = element && element.closest("[data-zielmonat]");
+    if (!arrow) return null;
+    const month = arrow.dataset.zielmonat;
+    const dayNumber = Math.min(Number(drag.from.slice(8, 10)), daysIn(month));
+    return { element: arrow, date: `${month}-${String(dayNumber).padStart(2, "0")}` };
+  }
+
+  function start(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const row = e.currentTarget.closest("tr");
+    const ghost = document.createElement("div");
+    ghost.className = "zieh-geist";
+    ghost.textContent = row.querySelector(".beschreibung").textContent + "  " + row.querySelector(".betrag").textContent;
+    document.body.append(ghost);
+    drag = { row, ghost, from: row.dataset.datum, target: null };
+    row.classList.add("wird-gezogen");
+    document.body.classList.add("ziehen");
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", drop);
+    window.addEventListener("pointercancel", stop);
+    window.addEventListener("keydown", escape);
+    move(e);
+  }
+
+  function move(e) {
+    drag.ghost.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 10}px)`;
+    let target = targetDate(document.elementFromPoint(e.clientX, e.clientY));
+    if (target && target.date === drag.from) target = null;
+    if (target?.element !== drag.target?.element) {
+      drag.target?.element.classList.remove("ziel");
+      target?.element.classList.add("ziel");
+    }
+    drag.target = target;
+    // Scroll along when dragging near the top or bottom edge
+    if (e.clientY < 50) window.scrollBy(0, -20);
+    else if (e.clientY > window.innerHeight - 50) window.scrollBy(0, 20);
+  }
+
+  function stop() {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", drop);
+    window.removeEventListener("pointercancel", stop);
+    window.removeEventListener("keydown", escape);
+    drag.target?.element.classList.remove("ziel");
+    drag.row.classList.remove("wird-gezogen");
+    document.body.classList.remove("ziehen");
+    drag.ghost.remove();
+    const result = drag;
+    drag = null;
+    return result;
+  }
+
+  function drop() {
+    const { row, target } = stop();
+    if (!target) return;
+    for (const field of ["art", "id", "nummer"]) form.elements[field].value = row.dataset[field];
+    form.elements.datum.value = target.date;
+    form.submit();
+  }
+
+  function escape(e) { if (e.key === "Escape") stop(); }
+
+  document.querySelectorAll(".liste .griff").forEach(handle => handle.addEventListener("pointerdown", start));
+})();
+</script>
 {% endblock %}

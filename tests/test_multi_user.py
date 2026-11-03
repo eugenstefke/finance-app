@@ -59,6 +59,9 @@ def test_no_access_to_foreign_ids(two_users):
     assert anna.post("/serie/1/0", data={"umfang": "alle", "aktion": "loeschen"}).status_code == 404
     assert anna.post("/wiederkehrend/1/beenden", data={"end_datum": "2026-10-31"}).status_code == 404
     assert anna.post("/wiederkehrend/1/loeschen").status_code == 404
+    assert anna.post("/verschieben", data={"art": "buchung", "id": "1", "datum": "2026-10-20"}).status_code == 404
+    assert anna.post("/verschieben", data={"art": "serie", "id": "1", "nummer": "0",
+                                           "datum": "2026-10-20"}).status_code == 404
 
     with db.connect() as conn:
         assert [t["beschreibung"] for t in db.all_transactions(conn, 1)] == ["Einkauf"]

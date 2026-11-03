@@ -6,15 +6,17 @@
   <h2>{{ 'Termin' if series else 'Buchung' }} bearbeiten</h2>
   {% if series %}
     <p class="wk-info">
-      🔁 Teil der Serie „{{ series.beschreibung }}“ · {{ series.intervall_monate | rhythm }} ·
+      Teil der Serie „{{ series.beschreibung }}“ · {{ series.intervall_monate | rhythm }} ·
       Termin {{ number + 1 }}{% if count %} von {{ count }}{% endif %}
     </p>
   {% endif %}
   <form method="post" class="formular" id="bearbeiten">
     {{ csrf_field() }}
     <div class="typwahl">
-      <label><input type="radio" name="typ" value="ausgabe" {{ 'checked' if entry.typ == 'ausgabe' }}> Ausgabe</label>
-      <label><input type="radio" name="typ" value="einnahme" {{ 'checked' if entry.typ == 'einnahme' }}> Einnahme</label>
+      <div class="segment" role="radiogroup" aria-label="Art der Buchung">
+        <label><input type="radio" name="typ" value="ausgabe" {{ 'checked' if entry.typ == 'ausgabe' }}><span>Ausgabe</span></label>
+        <label><input type="radio" name="typ" value="einnahme" {{ 'checked' if entry.typ == 'einnahme' }}><span>Einnahme</span></label>
+      </div>
     </div>
     <input type="date" name="datum" value="{{ entry.datum }}" required>
     <input type="text" name="beschreibung" value="{{ entry.beschreibung }}" required>

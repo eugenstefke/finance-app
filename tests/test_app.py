@@ -104,6 +104,58 @@ def test_edit_occurrence_via_ui(client):
     assert client.get("/serie/1/99").status_code == 404
 
 
+def test_drag_and_drop_move(client):
+    client.post("/buchung", data={"typ": "ausgabe", "datum": "2026-10-15",
+                                  "beschreibung": "Einkauf", "betrag": "50"})
+    client.post("/wiederkehrend", data={"typ": "ausgabe", "beschreibung": "Miete", "betrag": "900",
+                                        "intervall_monate": "1", "start_datum": "2026-10-01",
+                                        "end_datum": "2027-03-31"})
+    october = client.get("/monat/2026-10").get_data(as_text=True)
+    assert 'data-art="buchung" data-id="1"' in october
+    assert 'data-art="serie" data-id="1" data-nummer="0"' in october
+    assert 'data-zielmonat="2026-11"' in october
+
+    # Single booking: only the date changes
+    r = client.post("/verschieben", data={"art": "buchung", "id": "1", "datum": "2026-10-01"},
+                    follow_redirects=True)
+    assert "„Einkauf“ verschoben auf 01.10.2026." in r.get_data(as_text=True)
+    with db.connect() as conn:
+        t = db.get_transaction(conn, 1, 1)
+    assert (t["datum"], t["beschreibung"], t["betrag_cent"], t["typ"]) == ("2026-10-01", "Einkauf", 5000, "ausgabe")
+
+    # Series: only this occurrence moves, also into another month
+    r = client.post("/verschieben", data={"art": "serie", "id": "1", "nummer": "1",
+                                          "datum": "2026-12-03"}, follow_redirects=True)
+    december = r.get_data(as_text=True)
+    assert "„Miete“ verschoben auf 03.12.2026." in december
+    assert "Donnerstag, 3. Dezember" in december and "Dienstag, 1. Dezember" in december
+    assert "Miete" not in client.get("/monat/2026-11").get_data(as_text=True)
+    # Moving an already moved occurrence again
+    client.post("/verschieben", data={"art": "serie", "id": "1", "nummer": "1", "datum": "2026-11-20"})
+    assert "Freitag, 20. November" in client.get("/monat/2026-11").get_data(as_text=True)
+
+    assert client.post("/verschieben", data={"art": "serie", "id": "1", "nummer": "99",
+                                             "datum": "2026-11-20"}).status_code == 404
+    assert client.post("/verschieben", data={"art": "buchung", "id": "1", "datum": "kaputt"}).status_code == 400
+    assert client.post("/verschieben", data={"art": "x", "id": "1", "datum": "2026-11-20"}).status_code == 400
+
+
+def test_delete_recurring_from_month_page(client):
+    client.post("/wiederkehrend", data={"typ": "ausgabe", "beschreibung": "Abo", "betrag": "10",
+                                        "intervall_monate": "1", "start_datum": "2026-10-05",
+                                        "end_datum": "2027-03-31"})
+    november = client.get("/monat/2026-11").get_data(as_text=True)
+    assert 'class="link gefahr icon-btn serie-loeschen"' in november
+    assert 'data-url="/serie/1/1"' in november
+    assert "Dieser und alle folgenden Termine" in november   # scope choice in the dialog
+
+    # What the dialog sends: only action and scope
+    r = client.post("/serie/1/1", data={"aktion": "loeschen", "umfang": "ab"}, follow_redirects=True)
+    assert "Gelöscht: dieser und alle folgenden Termine." in r.get_data(as_text=True)
+    assert "Abo" in client.get("/monat/2026-10").get_data(as_text=True)
+    assert "Abo" not in client.get("/monat/2026-12").get_data(as_text=True)
+
+
 def test_recurring_invalid(client):
     base = {"typ": "ausgabe", "beschreibung": "X", "betrag": "10", "wiederkehrend": "1",
             "intervall_monate": "1", "start_datum": "2026-11-15"}

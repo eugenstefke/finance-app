@@ -151,6 +151,16 @@ def test_recurring_start_and_end():
     assert jan["available"] == 500000
 
 
+def test_day_balances_run_from_carry_over():
+    transactions = [
+        t("2026-09-30", 10000, fin.INCOME),
+        t("2026-10-03", 2500), t("2026-10-03", 1000, fin.INCOME), t("2026-10-20", 20000),
+    ]
+    s = fin.month_summary(transactions, [r(5000, fin.INCOME, start="2026-10-01")], "2026-10")
+    assert s["day_balances"] == {"2026-10-01": 15000, "2026-10-03": 13500, "2026-10-20": -6500}
+    assert s["day_balances"]["2026-10-20"] == s["available"]
+
+
 def test_carry_over_equals_previous_available():
     transactions = [t("2026-08-10", 4200), t("2026-11-20", 777, fin.INCOME)]
     recurring = [

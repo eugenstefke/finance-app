@@ -212,6 +212,8 @@ def month_summary(transactions, recurring, month: str, overrides=()) -> dict:
     (key: recurring_id + nummer); a changed occurrence may also lie in
     a different month than scheduled.
 
+    `day_balances` maps each booking day to the balance at the end of that day.
+
     Each entry of the result is a transaction row plus `is_recurring`; series
     occurrences additionally carry `number` and `is_changed`.
     """
@@ -252,6 +254,13 @@ def month_summary(transactions, recurring, month: str, overrides=()) -> dict:
     income = sum(e["betrag_cent"] for e in entries if e["typ"] == INCOME)
     expenses = sum(e["betrag_cent"] for e in entries if e["typ"] == EXPENSE)
 
+    # Running balance at the end of each booking day (carry-over included)
+    day_balances = {}
+    balance = carry_over
+    for e in entries:
+        balance += _signed(e)
+        day_balances[e["datum"]] = balance
+
     return {
         "month": month,
         "carry_over": carry_over,
@@ -259,4 +268,5 @@ def month_summary(transactions, recurring, month: str, overrides=()) -> dict:
         "expenses": expenses,
         "available": carry_over + income - expenses,
         "entries": entries,
+        "day_balances": day_balances,
     }

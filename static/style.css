@@ -23,7 +23,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.8rem 1.2rem;
+  padding: 0.8rem clamp(1rem, 3vw, 2.5rem);
   background: var(--karte);
   border-bottom: 1px solid var(--rand);
 }
@@ -45,10 +45,16 @@ body {
 .formular.senkrecht .feld input { padding: 0.5rem 0.6rem; border: 1px solid var(--rand); border-radius: 6px; font: inherit; color: var(--text); }
 pre { background: var(--bg); padding: 0.6rem 0.8rem; border-radius: 6px; }
 
-main { max-width: 900px; margin: 0 auto; padding: 1.2rem; }
+/* Content uses most of the screen width; text grows with the window on large screens */
+html { font-size: clamp(16px, 0.75rem + 0.45vw, 20px); }
+main { max-width: 1400px; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 2.5rem); }
 
 h1 { margin: 0; font-size: 1.6rem; }
 h2 { margin: 0 0 0.8rem; font-size: 1.1rem; }
+.karte-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.4rem 1rem; margin-bottom: 0.8rem; }
+.karte-kopf h2 { margin: 0; }
+.anzeige-optionen { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.9rem; }
+.anzeige-optionen label { cursor: pointer; user-select: none; }
 
 .gedimmt { color: var(--gedimmt); }
 .plus { color: var(--plus); }
@@ -106,14 +112,77 @@ h2 { margin: 0 0 0.8rem; font-size: 1.1rem; }
 .formular input[type=date],
 .formular input[type=month],
 .formular input[type=number] {
-  padding: 0.5rem 0.6rem;
+  padding: 0.6rem 0.75rem;
   border: 1px solid var(--rand);
   border-radius: 6px;
   font: inherit;
 }
 .formular input[name=beschreibung] { flex: 1 1 200px; }
 .formular .feld { display: flex; flex-direction: column; font-size: 0.8rem; color: var(--gedimmt); gap: 0.2rem; }
-.typwahl { display: flex; gap: 0.8rem; width: 100%; }
+.typwahl { display: flex; align-items: center; gap: 0.8rem; width: 100%; }
+
+/* Ausgabe/Einnahme: sliding two-way switch (radio buttons underneath) */
+.segment {
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--rand);
+  border-radius: 999px;
+}
+.segment::before {
+  content: "";
+  position: absolute;
+  top: 3px; bottom: 3px; left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 999px;
+  background: var(--minus);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.segment:has(input[value=einnahme]:checked)::before { transform: translateX(100%); background: var(--plus); }
+.segment label {
+  position: relative;
+  z-index: 1;
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
+  text-align: center;
+  font-weight: 500;
+  color: var(--gedimmt);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
+}
+.segment label:has(input:checked) { color: #fff; }
+.segment label:has(input:focus-visible) { outline: 2px solid var(--primaer); outline-offset: 2px; }
+.segment input, .schalter input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+
+/* On/off switch (checkbox underneath) */
+.schalter { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; }
+.schalter-bahn {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.4rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: #c9ccd3;
+  transition: background 0.2s ease;
+}
+.schalter-bahn::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: calc(1.35rem - 4px);
+  height: calc(1.35rem - 4px);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+.schalter input:checked + .schalter-bahn { background: var(--primaer); }
+.schalter input:checked + .schalter-bahn::after { transform: translateX(1.05rem); }
+.schalter input:focus-visible + .schalter-bahn { outline: 2px solid var(--primaer); outline-offset: 2px; }
 
 .btn {
   display: inline-block;
@@ -153,11 +222,39 @@ button.link.gefahr { color: var(--minus); }
   background: var(--bg);
   border-bottom: 2px solid var(--rand);
 }
-.tageskopf th.plus { color: var(--plus); }
-.tageskopf th.minus { color: var(--minus); }
+/* Amounts: black text on a red (debit) or green (credit) background */
+.betrag {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 6px;
+  color: #000;
+  font-weight: 600;
+  white-space: nowrap;
+  /* Same box width for every amount up to "− 999.999,99 €"; amount centred in the box */
+  box-sizing: content-box;
+  min-width: 13ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.betrag.plus { background: rgba(19, 138, 75, 0.22); }
+.betrag.minus { background: rgba(197, 48, 48, 0.20); }
+/* Day balance: white box with black text, same size as the amounts */
+.betrag.saldo { background: #fff; box-shadow: inset 0 0 0 1px var(--rand); }
+.tageskopf th.tagesname { white-space: nowrap; }
+.tageskopf th.tagessaldo.kategorie { text-align: center; }
+.tageskopf th.nur-mobil > span { visibility: hidden; }
+/* Day total and day balance are only shown when ticked in "Neue Buchung" */
+html:not(.zeige-tagessumme) .tageskopf th.tagessumme > span,
+html:not(.zeige-tagessaldo) .tageskopf th.tagessaldo > span { display: none; }
 .aktionen { white-space: nowrap; text-align: right; font-size: 0.85rem; }
 .aktionen a { color: var(--primaer); text-decoration: none; }
 .aktionen form { display: inline; margin-left: 0.6rem; }
+.icon { width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.2em; }
+.icon-btn, button.link.icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.3rem; border-radius: 6px; line-height: 1; }
+.icon-btn:hover, button.link.icon-btn:hover { background: var(--bg); }
+/* Pencil, bin and drag handle: same spacing in every row */
+.symbolleiste { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.25rem; vertical-align: middle; }
+.symbolleiste form { display: contents; }
 .aktionen input[type=date] { font: inherit; font-size: 0.8rem; padding: 0.15rem; }
 .klein { font-size: 0.8rem; }
 
@@ -202,6 +299,36 @@ button.link.gefahr { color: var(--minus); }
 .flash.fehler { background: #fdecec; color: var(--minus); }
 
 @media (max-width: 600px) {
-  .liste td.kategorie { display: none; }
+  .liste td.kategorie, .liste th.kategorie { display: none; }
+  .tageskopf th.nur-mobil > span { visibility: visible; }
   .monatsnav h1 { font-size: 1.3rem; min-width: 0; flex: 1; }
+}
+
+/* Drag & drop of bookings */
+.griff {
+  display: inline-flex;
+  color: var(--gedimmt);
+  opacity: 0.55;
+  cursor: grab;
+  touch-action: none;   /* on touch screens: drag instead of scrolling */
+}
+.griff:hover { opacity: 1; }
+.karte-kopf .icon { vertical-align: -0.25em; }
+body.ziehen, body.ziehen * { cursor: grabbing !important; user-select: none; }
+tr.wird-gezogen { opacity: 0.35; }
+.liste tbody.tag.ziel td, .liste tbody.tag.ziel th { background: rgba(47, 111, 237, 0.10); }
+.monatsnav .btn.ziel { border-color: var(--primaer); background: rgba(47, 111, 237, 0.10); }
+.zieh-geist {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  pointer-events: none;
+  padding: 0.4rem 0.75rem;
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  font-size: 0.9rem;
+  white-space: pre;
 }

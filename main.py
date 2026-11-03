@@ -130,6 +130,7 @@ def show_month(month):
         next_month=fin.shift_month(month, 1),
         is_current=month == fin.current_month(),
         default_date=default_date,
+        scopes=db.SCOPES,
     )
 
 
@@ -175,6 +176,39 @@ def delete_transaction(tid):
     db.delete_transaction(conn, g.user["id"], tid)
     flash("Buchung gelöscht.", "ok")
     return redirect(url_for("show_month", month=fin.month_of(transaction["datum"])))
+
+
+@app.post("/verschieben")
+def move_entry():
+    """Drag & drop: moves a booking to another date; for series only this one occurrence."""
+    conn, uid, form = db.get_db(), g.user["id"], request.form
+    try:
+        new_date = _parse_date(form.get("datum"), "Ungültiges Zieldatum.")
+        entry_id = int(form.get("id", ""))
+        number = int(form.get("nummer") or 0)
+    except ValueError:
+        abort(400)
+
+    if form.get("art") == "buchung":
+        current = db.get_transaction(conn, uid, entry_id)
+        if current is None:
+            abort(404)
+        db.update_transaction(conn, uid, entry_id, new_date, current["beschreibung"],
+                              current["kategorie"], current["betrag_cent"], current["typ"])
+    elif form.get("art") == "serie":
+        series = db.get_recurring(conn, uid, entry_id)
+        if series is None or not fin.is_valid_number(series, number):
+            abort(404)
+        current = db.get_override(conn, entry_id, number) or series
+        if current is not series and current["geloescht"]:
+            abort(404)
+        db.edit_occurrence(conn, entry_id, number, "einzeln", new_date, current["beschreibung"],
+                           current["kategorie"], current["betrag_cent"], current["typ"])
+    else:
+        abort(400)
+
+    flash(f"„{current['beschreibung']}“ verschoben auf {fin.format_date(new_date)}.", "ok")
+    return redirect(url_for("show_month", month=fin.month_of(new_date)))
 
 
 @app.route("/serie/<int:rid>/<int:number>", methods=["GET", "POST"])
