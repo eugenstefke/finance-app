@@ -10,7 +10,7 @@ import secrets
 from datetime import date
 from pathlib import Path
 
-from flask import Flask, abort, flash, g, redirect, render_template, request, url_for
+from flask import Flask, abort, flash, g, redirect, render_template, request, send_from_directory, url_for
 
 import auth
 import db
@@ -107,6 +107,22 @@ def _save_recurring(conn, form):
 
 # --- Routes ---------------------------------------------------------------------
 
+# --- Progressive web app ---------------------------------------------------------------
+
+@app.get("/sw.js")
+def service_worker():
+    """Served from the root so the service worker may control the whole app."""
+    response = send_from_directory(app.static_folder, "sw.js", mimetype="text/javascript")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.get("/manifest.webmanifest")
+def manifest():
+    return send_from_directory(app.static_folder, "manifest.webmanifest",
+                               mimetype="application/manifest+json")
+
+
 @app.route("/")
 def index():
     return redirect(url_for("show_month", month=fin.current_month()))
@@ -134,19 +150,45 @@ def show_month(month):
     )
 
 
+def _show_day(iso_date):
+    """Month page, scrolled to the given day."""
+    return redirect(url_for("show_month", month=fin.month_of(iso_date), _anchor=f"tag-{iso_date}"))
+
+
+def _kind(value):
+    return value if value in (fin.INCOME, fin.EXPENSE) else fin.EXPENSE
+
+
+def _new_form(kind, form, status=200):
+    try:
+        default_date = date.fromisoformat(request.args.get("datum", "")).isoformat()
+    except ValueError:
+        default_date = date.today().isoformat()
+    chosen = form.get("datum") or form.get("start_datum") or default_date
+    back_month = fin.month_of(chosen) if fin.is_valid_month(fin.month_of(chosen)) else fin.current_month()
+    return render_template("new.html", kind=kind, form=form, default_date=default_date,
+                           back_month=back_month), status
+
+
+@app.get("/buchung/neu")
+def new_form():
+    return _new_form(_kind(request.args.get("typ")), {})
+
+
 @app.post("/buchung")
 def new_transaction():
     try:
         if request.form.get("wiederkehrend"):
             entry = _save_recurring(db.get_db(), request.form)
-            return redirect(url_for("show_month", month=fin.month_of(entry["start_datum"])))
+            return _show_day(entry["start_datum"])
         values = _parse_transaction(request.form)
     except ValueError as e:
+        # Stay on the form and keep the input
         flash(str(e), "fehler")
-        return redirect(request.referrer or url_for("index"))
+        return _new_form(_kind(request.form.get("typ")), request.form, 400)
     db.add_transaction(db.get_db(), g.user["id"], *values)
     flash("Buchung gespeichert.", "ok")
-    return redirect(url_for("show_month", month=fin.month_of(values[0])))
+    return _show_day(values[0])
 
 
 @app.route("/buchung/<int:tid>", methods=["GET", "POST"])
@@ -211,6 +253,9 @@ def move_entry():
     return redirect(url_for("show_month", month=fin.month_of(new_date)))
 
 
+UPCOMING_LIMIT = 5   # upcoming payments shown for series without end date
+
+
 @app.route("/serie/<int:rid>/<int:number>", methods=["GET", "POST"])
 def edit_occurrence(rid, number):
     """Change or delete one occurrence of a recurring transaction."""
@@ -224,9 +269,14 @@ def edit_occurrence(rid, number):
     current = override or {**dict(series), "datum": fin.occurrence_date(series, number)}
 
     if request.method == "GET":
+        # Overview of the payments still due; open-ended series: only the next few
+        limit = None if series["end_datum"] else UPCOMING_LIMIT
+        upcoming = fin.upcoming_occurrences(series, db.all_overrides(conn, g.user["id"]),
+                                            date.today().isoformat(), limit)
         return render_template(
             "edit.html", entry=current, series=series, number=number,
             count=fin.occurrence_count(series), scopes=db.SCOPES,
+            upcoming=upcoming, upcoming_total=fin.day_total(upcoming), upcoming_limit=limit,
         )
 
     scope = request.form.get("umfang")

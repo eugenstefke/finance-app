@@ -173,3 +173,24 @@ def test_set_password_too_short(app, monkeypatch, capsys):
     monkeypatch.setattr("sys.stdin", io.StringIO("\nkurz\nkurz\n"))
     assert set_password.main() == 1
     assert "mindestens" in capsys.readouterr().out
+
+
+def test_pwa_files_public(anon):
+    """Service worker, manifest and offline page must load without login (installable app)."""
+    import json
+    sw = anon.get("/sw.js")
+    assert sw.status_code == 200 and sw.mimetype == "text/javascript"
+    assert sw.headers["Cache-Control"] == "no-cache"
+    assert "OFFLINE_PAGE" in sw.get_data(as_text=True)
+
+    manifest = anon.get("/manifest.webmanifest")
+    assert manifest.status_code == 200 and manifest.mimetype == "application/manifest+json"
+    data = json.loads(manifest.get_data(as_text=True))
+    assert data["display"] == "standalone" and data["start_url"] == "/"
+    for icon in data["icons"]:
+        assert anon.get(icon["src"]).status_code == 200
+
+    assert anon.get("/static/offline.html").status_code == 200
+    login = anon.get("/login").get_data(as_text=True)
+    assert 'rel="manifest" href="/manifest.webmanifest"' in login
+    assert 'navigator.serviceWorker.register("/sw.js")' in login

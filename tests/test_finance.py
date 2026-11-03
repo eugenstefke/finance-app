@@ -183,3 +183,44 @@ def test_entries_sorted_and_marked():
     s = fin.month_summary([t("2026-10-20", 100)], [r(500, start="2026-09-05")], "2026-10")
     assert [e["datum"] for e in s["entries"]] == ["2026-10-05", "2026-10-20"]
     assert [e["is_recurring"] for e in s["entries"]] == [True, False]
+
+
+# --- Upcoming payments ---
+
+def o(number, iso_date=None, amount=1000, deleted=False, rid=1):
+    return {"recurring_id": rid, "nummer": number, "geloescht": int(deleted), "datum": iso_date,
+            "beschreibung": "geändert", "kategorie": "", "betrag_cent": amount, "typ": fin.EXPENSE}
+
+
+def test_upcoming_with_end_date_lists_all_remaining():
+    series = r(5000, start="2026-01-15", end="2026-12-31")
+    upcoming = fin.upcoming_occurrences(series, [], "2026-09-15")
+    assert [e["datum"] for e in upcoming] == ["2026-09-15", "2026-10-15", "2026-11-15", "2026-12-15"]
+    assert [e["number"] for e in upcoming] == [8, 9, 10, 11]
+    assert fin.day_total(upcoming) == -20000
+    assert fin.upcoming_occurrences(series, [], "2027-01-01") == []
+
+
+def test_upcoming_open_ended_only_next_five():
+    series = r(5000, start="2020-03-31", interval=3)
+    upcoming = fin.upcoming_occurrences(series, [], "2026-11-03", limit=5)
+    assert [e["datum"] for e in upcoming] == [
+        "2026-12-31", "2027-03-31", "2027-06-30", "2027-09-30", "2027-12-31"]
+    with pytest.raises(ValueError):
+        fin.upcoming_occurrences(series, [], "2026-11-03")
+
+
+def test_upcoming_respects_changed_moved_and_deleted():
+    series = r(5000, start="2026-10-01")
+    overrides = [
+        o(1, deleted=True),                    # November deleted
+        o(2, "2026-12-20", amount=7000),       # December changed
+        o(3, "2027-06-10"),                    # January moved far ahead
+        o(0, "2026-11-25"),                    # October moved into the future
+        o(2, "2026-12-01", rid=2),             # other series: ignored
+    ]
+    upcoming = fin.upcoming_occurrences(series, overrides, "2026-11-03", limit=5)
+    assert [(e["number"], e["datum"]) for e in upcoming] == [
+        (0, "2026-11-25"), (2, "2026-12-20"), (4, "2027-02-01"), (5, "2027-03-01"), (6, "2027-04-01")]
+    assert [e["is_changed"] for e in upcoming] == [True, True, False, False, False]
+    assert upcoming[1]["betrag_cent"] == 7000

@@ -29,7 +29,7 @@ bp = Blueprint("auth", __name__)
 MIN_LENGTH = 10
 MAX_FAILED_ATTEMPTS = 5
 LOCK_SECONDS = 15 * 60
-PUBLIC_ENDPOINTS = {"auth.login", "static"}
+PUBLIC_ENDPOINTS = {"auth.login", "static", "service_worker", "manifest"}
 
 # Credentials of the demo account; shown on the login page as soon as it exists.
 DEMO_USERNAME = "demo"

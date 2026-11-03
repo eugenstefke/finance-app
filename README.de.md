@@ -16,6 +16,9 @@ Gebaut mit Python, Flask und SQLite. Kein JavaScript-Framework, kein Build-Schri
   Gibt es den Buchungstag in einem kurzen Monat nicht (z. B. den 31.), rutscht die Buchung aufs Monatsende.
 - **Einzelne Termine einer Serie bearbeiten:** *nur diesen*, *diesen und alle vorherigen*,
   *diesen und alle folgenden* oder *alle* Termine ändern oder löschen. Ein verschobenes Datum verschiebt alle betroffenen Termine.
+- **Drag & Drop:** Buchungen per Ziehen auf einen anderen Tag oder Monat verschieben.
+- **Als App installierbar (PWA):** auf dem Handy über *Zum Startbildschirm hinzufügen*, am PC über das
+  Installieren-Symbol in der Adressleiste. Seiten kommen immer frisch vom Server, nur Styles und Icons werden zwischengespeichert.
 - **Mehrere Benutzerkonten:** Jedes Konto sieht nur seine eigenen Daten.
 - **Optionales öffentliches Demo-Konto:** mit Beispieldaten, lässt sich täglich zurücksetzen.
 - **Grundlegende Sicherheit eingebaut:** Passwörter als Hash (scrypt), CSRF-Schutz in jedem Formular,
@@ -109,7 +112,8 @@ Die Tests verwenden eine temporäre Datenbank und fassen `finanzen.db` nie an.
 | `finance.py` | Reine Rechenlogik: Beträge, Monate, Termine von Serien, Monatsübersicht |
 | `set_password.py` | Kommandozeile: Konto anlegen oder Passwort zurücksetzen |
 | `reset_demo.py` | Kommandozeile: Demo-Konto anlegen oder zurücksetzen |
-| `templates/`, `static/` | Jinja-Templates und CSS |
+| `templates/`, `static/` | Jinja-Templates, CSS, Icons |
+| `static/manifest.webmanifest`, `static/sw.js` | PWA: App-Manifest und Service Worker (werden unter `/` ausgeliefert) |
 | `tests/` | pytest-Tests |
 
 Beträge werden als ganze Zahlen in Cent gespeichert. Datenbankspalten und Formularfelder behalten ihre ursprünglichen

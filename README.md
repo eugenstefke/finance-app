@@ -16,6 +16,9 @@ Built with Python, Flask and SQLite. No JavaScript framework, no build step.
   Booking days that don't exist in short months (e.g. the 31st) move to the end of the month.
 - **Edit single occurrences of a series** – change or delete *only this one*, *this and all previous*,
   *this and all following* or *all* occurrences. Moving a date shifts all affected occurrences.
+- **Drag & drop** – move a booking to another day or month by dragging it.
+- **Installable as an app (PWA)** – on the phone via *Add to Home Screen*, on the desktop via the install icon
+  in the address bar. Pages always come fresh from the server; only styles and icons are cached.
 - **Multiple user accounts** – every account only sees its own data.
 - **Optional public demo account** – with sample data, can be reset daily.
 - **Security basics built in** – password hashing (scrypt), CSRF protection on every form,
@@ -109,7 +112,8 @@ The tests use a temporary database and never touch `finanzen.db`.
 | `finance.py` | Pure calculation logic: amounts, months, recurring dates, monthly summary |
 | `set_password.py` | CLI: create an account or reset a password |
 | `reset_demo.py` | CLI: create/reset the demo account |
-| `templates/`, `static/` | Jinja templates and CSS |
+| `templates/`, `static/` | Jinja templates, CSS, icons |
+| `static/manifest.webmanifest`, `static/sw.js` | PWA: app manifest and service worker (served from `/`) |
 | `tests/` | pytest suite |
 
 Amounts are stored as integers in cents. Database columns and form fields keep their original German names

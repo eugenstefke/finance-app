@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Neue {{ 'Einnahme' if kind == 'einnahme' else 'Ausgabe' }} · Finanzen{% endblock %}
+
+{% block content %}
+<section class="karte neu-seite">
+  <h2>Neue {{ 'Einnahme' if kind == 'einnahme' else 'Ausgabe' }}</h2>
+  <form method="post" action="{{ url_for('new_transaction') }}" class="formular senkrecht neu-formular">
+    {{ csrf_field() }}
+    <input type="hidden" name="typ" value="{{ kind }}">
+    <label class="feld" id="datum-feld">Datum
+      <input type="date" name="datum" id="datum" value="{{ form.get('datum', default_date) }}" required>
+    </label>
+    <label class="feld">Beschreibung
+      <input type="text" name="beschreibung" value="{{ form.get('beschreibung', '') }}" placeholder="z.B. {{ 'Gehalt' if kind == 'einnahme' else 'Einkauf' }}" required autofocus>
+    </label>
+    <label class="feld">Kategorie (optional)
+      <input type="text" name="kategorie" value="{{ form.get('kategorie', '') }}">
+    </label>
+    <label class="feld">Betrag
+      <input type="text" name="betrag" value="{{ form.get('betrag', '') }}" placeholder="z.B. 49,90" inputmode="decimal" required>
+    </label>
+    <label class="schalter"><input type="checkbox" role="switch" name="wiederkehrend" value="1" id="wk-check"><span class="schalter-bahn"></span> Wiederkehrende Buchung</label>
+    <p class="wk-info" id="wk-info" hidden>
+      <span id="wk-text"></span>
+      <button type="button" class="link" id="wk-aendern">ändern</button>
+    </p>
+    <div class="knopfreihe">
+      <button type="submit" class="btn primaer">Speichern</button>
+      <a class="btn" href="{{ url_for('show_month', month=back_month) }}">Abbrechen</a>
+    </div>
+
+    <dialog id="wk-dialog" class="fenster">
+      <h3>Wiederkehrende Buchung</h3>
+      <label class="feld">Rhythmus
+        <select name="intervall_monate" id="wk-rhythmus">
+          {% for months, label in RHYTHMS.items() %}
+            <option value="{{ months }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="feld">Startdatum (erste Zahlung)
+        <input type="date" name="start_datum" id="wk-start">
+      </label>
+      <label class="feld">Enddatum (optional, leer = unbegrenzt)
+        <input type="date" name="end_datum" id="wk-ende">
+      </label>
+      <p class="gedimmt" id="wk-vorschau"></p>
+      <p class="fehlertext" id="wk-fehler" hidden></p>
+      <div class="fenster-aktionen">
+        <button type="button" class="btn" id="wk-abbrechen">Abbrechen</button>
+        <button type="button" class="btn primaer" id="wk-ok">Übernehmen</button>
+      </div>
+    </dialog>
+  </form>
+</section>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const check = $("wk-check"), dialog = $("wk-dialog"), dateInput = $("datum");
+  const rhythm = $("wk-rhythmus"), start = $("wk-start"), end = $("wk-ende");
+  let accepted = false;
+
+  const toGerman = iso => iso.split("-").reverse().join(".");
+  const pad = n => String(n).padStart(2, "0");
+
+  // All payment dates between start and end (same logic as finance.py)
+  function occurrences() {
+    if (!start.value || !end.value || end.value < start.value) return null;
+    const [startYear, startMonth, startDay] = start.value.split("-").map(Number);
+    const step = Number(rhythm.value), dates = [];
+    for (let i = 0; dates.length < 1000; i += step) {
+      const index = startYear * 12 + startMonth - 1 + i, y = Math.floor(index / 12), m = index % 12 + 1;
+      const day = Math.min(startDay, new Date(y, m, 0).getDate());
+      const iso = `${y}-${pad(m)}-${pad(day)}`;
+      if (iso > end.value) break;
+      dates.push(iso);
+    }
+    return dates;
+  }
+
+  function describe() {
+    let text = `${rhythm.selectedOptions[0].text} ab ${toGerman(start.value)}`;
+    const dates = occurrences();
+    if (end.value) text += ` bis ${toGerman(end.value)}`;
+    text += dates ? ` · ${dates.length} Buchungen werden eingetragen` : " · ohne Enddatum";
+    return text;
+  }
+
+  function preview() {
+    $("wk-fehler").hidden = true;
+    $("wk-vorschau").textContent = start.value ? describe() : "";
+  }
+
+  function openDialog() {
+    if (!start.value) start.value = dateInput.value;
+    preview();
+    dialog.showModal();
+  }
+
+  function setActive(active) {
+    accepted = active;
+    check.checked = active;
+    dateInput.disabled = active;   // the date then comes from the start date
+    $("datum-feld").hidden = active;
+    $("wk-info").hidden = !active;
+    if (active) $("wk-text").textContent = describe();
+  }
+
+  function cancel() {
+    dialog.close();
+    check.checked = accepted;
+  }
+
+  check.addEventListener("change", () => check.checked ? openDialog() : setActive(false));
+  $("wk-aendern").addEventListener("click", openDialog);
+  $("wk-abbrechen").addEventListener("click", cancel);
+  dialog.addEventListener("cancel", e => { e.preventDefault(); cancel(); });
+  [rhythm, start, end].forEach(field => field.addEventListener("input", preview));
+
+  $("wk-ok").addEventListener("click", () => {
+    const error = !start.value ? "Bitte ein Startdatum wählen."
+      : end.value && end.value < start.value ? "Das Enddatum darf nicht vor dem Startdatum liegen."
+      : null;
+    if (error) {
+      $("wk-fehler").textContent = error;
+      $("wk-fehler").hidden = false;
+      return;
+    }
+    dialog.close();
+    setActive(true);
+  });
+})();
+</script>
+{% endblock %}

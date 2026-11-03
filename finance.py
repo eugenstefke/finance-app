@@ -195,6 +195,45 @@ def occurrence_count(r) -> int | None:
     return _occurrences_before(r, shift_month(month_of(r["end_datum"]), 1))
 
 
+def upcoming_occurrences(r, overrides, today: str, limit: int | None = None) -> list:
+    """Occurrences of series r on or after `today`, sorted by date.
+
+    Individually changed occurrences use their changed values (and date), deleted ones are left out.
+    `overrides` may contain overrides of other series too. With `limit` at most that many are
+    returned (meant for series without end date); without, all remaining ones (needs an end date).
+    """
+    if limit is None and not r["end_datum"]:
+        raise ValueError("Without an end date a limit is needed.")
+    changed = {o["nummer"]: o for o in overrides
+               if o["recurring_id"] == r["id"] and is_valid_number(r, o["nummer"])}
+    count = occurrence_count(r)
+
+    def entry(number):
+        """The occurrence as it currently stands, or None if deleted or already past."""
+        o = changed.get(number)
+        if o is not None and o["geloescht"]:
+            return None
+        e = {**dict(r), "number": number, "is_changed": o is not None,
+             "datum": occurrence_date(r, number)}
+        if o is not None:
+            e.update({k: o[k] for k in _OVERRIDE_FIELDS})
+        return e if e["datum"] >= today else None
+
+    # Occurrences scheduled before the previous month can only be upcoming if they were moved
+    first = max(0, (month_index(month_of(today)) - _start_index(r)) // r["intervall_monate"] - 1)
+    result = [e for e in map(entry, sorted(n for n in changed if n < first)) if e]
+    # Changed occurrences may move out of order, so look ahead by their number
+    wanted = None if limit is None else limit + len(changed)
+    number = first
+    while (count is None or number < count) and (wanted is None or len(result) < wanted):
+        e = entry(number)
+        if e:
+            result.append(e)
+        number += 1
+    result.sort(key=lambda e: (e["datum"], e["number"]))
+    return result if limit is None else result[:limit]
+
+
 # --- Monthly overview ------------------------------------------------------------
 
 _OVERRIDE_FIELDS = ("datum", "beschreibung", "kategorie", "betrag_cent", "typ")

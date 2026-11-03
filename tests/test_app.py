@@ -156,6 +156,56 @@ def test_delete_recurring_from_month_page(client):
     assert "Abo" not in client.get("/monat/2026-12").get_data(as_text=True)
 
 
+def test_upcoming_payments_on_edit_page(client):
+    from datetime import date
+    year = date.today().year + 1
+    client.post("/wiederkehrend", data={"typ": "ausgabe", "beschreibung": "Kredit", "betrag": "100",
+                                        "intervall_monate": "1", "start_datum": f"{year}-01-10",
+                                        "end_datum": f"{year}-12-31"})
+    page = client.get("/serie/1/0").get_data(as_text=True)
+    assert "Anstehende Zahlungen" in page
+    assert f"Noch 12 Zahlungen bis 31.12.{year}" in page
+    assert "− 1.200,00 €" in page
+    assert "dieser Termin" in page and "/serie/1/11" in page
+
+    client.post("/wiederkehrend", data={"typ": "einnahme", "beschreibung": "Gehalt", "betrag": "2000",
+                                        "intervall_monate": "1", "start_datum": f"{year}-01-01",
+                                        "end_datum": ""})
+    page = client.get("/serie/2/0").get_data(as_text=True)
+    assert "Ohne Enddatum · die nächsten 5 Zahlungen" in page
+    assert page.count('class="nr gedimmt"') == 5
+
+
+def test_new_booking_page(client):
+    month = client.get("/monat/2026-11").get_data(as_text=True)
+    assert "/buchung/neu?typ=ausgabe&amp;datum=" in month
+    assert "/buchung/neu?typ=einnahme&amp;datum=" in month
+    assert 'name="beschreibung"' not in month          # the form itself is no longer on the main page
+
+    page = client.get("/buchung/neu?typ=einnahme&datum=2026-11-10").get_data(as_text=True)
+    assert "Neue Einnahme" in page
+    assert 'name="typ" value="einnahme"' in page and 'value="2026-11-10"' in page
+    assert 'id="wk-dialog"' in page
+    assert "Neue Ausgabe" in client.get("/buchung/neu?typ=unsinn&datum=kaputt").get_data(as_text=True)
+
+    # Saving jumps to the booking's day
+    r = client.post("/buchung", data={"typ": "ausgabe", "datum": "2026-11-10",
+                                      "beschreibung": "Tanken", "betrag": "60"})
+    assert r.headers["Location"].endswith("/monat/2026-11#tag-2026-11-10")
+    assert 'id="tag-2026-11-10"' in client.get("/monat/2026-11").get_data(as_text=True)
+    r = client.post("/buchung", data={"typ": "einnahme", "beschreibung": "Miete Garage", "betrag": "50",
+                                      "wiederkehrend": "1", "intervall_monate": "1",
+                                      "start_datum": "2026-12-05", "end_datum": ""})
+    assert r.headers["Location"].endswith("/monat/2026-12#tag-2026-12-05")
+
+    # Invalid input: stay on the form, input kept
+    r = client.post("/buchung", data={"typ": "einnahme", "datum": "2026-11-10",
+                                      "beschreibung": "Bonus", "betrag": "abc"})
+    page = r.get_data(as_text=True)
+    assert r.status_code == 400 and "Ungültiger Betrag" in page
+    assert 'value="Bonus"' in page and "Neue Einnahme" in page
+
+
 def test_recurring_invalid(client):
     base = {"typ": "ausgabe", "beschreibung": "X", "betrag": "10", "wiederkehrend": "1",
             "intervall_monate": "1", "start_datum": "2026-11-15"}

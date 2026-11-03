@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import pencil %}
 {% block title %}{{ 'Termin' if series else 'Buchung' }} bearbeiten · Finanzen{% endblock %}
 
 {% block content %}
@@ -52,6 +53,37 @@
 </section>
 
 {% if series %}
+<section class="karte">
+  <h2>Anstehende Zahlungen</h2>
+  {% if not upcoming %}
+    <p class="gedimmt">Keine weiteren Zahlungen geplant.</p>
+  {% else %}
+    <p class="gedimmt">
+      {% if upcoming_limit %}
+        Ohne Enddatum · die nächsten {{ upcoming | length }} Zahlungen
+      {% else %}
+        Noch {{ upcoming | length }} {{ 'Zahlung' if upcoming | length == 1 else 'Zahlungen' }} bis {{ series.end_datum | date }}
+        · insgesamt <span class="betrag {{ 'plus' if upcoming_total >= 0 else 'minus' }}">{{ '+' if upcoming_total >= 0 else '−' }} {{ upcoming_total | abs | eur }}</span>
+      {% endif %}
+    </p>
+    <table class="liste anstehend">
+      {% for item in upcoming %}
+      <tr class="{{ 'aktuell' if item.number == number }}">
+        <td class="nr gedimmt">{{ item.number + 1 }}.</td>
+        <td>{{ item.datum | day_name }} {{ item.datum[:4] }}</td>
+        <td>{{ item.beschreibung }}<span class="gedimmt klein">{% if item.number == number %} · dieser Termin{% endif %}{% if item.is_changed %} · einzeln geändert{% endif %}</span></td>
+        <td class="rechts"><span class="betrag {{ 'plus' if item.typ == 'einnahme' else 'minus' }}">{{ '+' if item.typ == 'einnahme' else '−' }} {{ item.betrag_cent | eur }}</span></td>
+        <td class="aktionen">
+          {% if item.number != number %}
+            <a class="icon-btn" href="{{ url_for('edit_occurrence', rid=series.id, number=item.number) }}" title="Diesen Termin bearbeiten" aria-label="Diesen Termin bearbeiten">{{ pencil() }}</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+</section>
+
 <script>
 (() => {
   const $ = id => document.getElementById(id);
