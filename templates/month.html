@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_icons.html" import grip, pencil, trash %}
+{% from "_icons.html" import arrow_up, grip, pencil, trash %}
 {% block title %}{{ summary.month | month_name }} · Finanzen{% endblock %}
 
 {% block content %}
@@ -10,6 +10,7 @@
   {% if not is_current %}
     <a class="btn klein" href="{{ url_for('index') }}">Heute</a>
   {% endif %}
+  <a class="btn klein" href="{{ url_for('category_overview', month=summary.month) }}">Kategorien</a>
 </div>
 
 <section class="kacheln">
@@ -38,6 +39,13 @@
 </script>
 
 <section class="karte neu-leiste">
+  {# Month switcher and arrow: only visible once the month heading has been scrolled away #}
+  <div class="leiste-monat">
+    <button type="button" class="btn klein nach-oben" title="Nach oben" aria-label="Nach oben">{{ arrow_up() }}</button>
+    <a class="btn klein" href="{{ url_for('show_month', month=prev_month) }}" title="Vormonat" data-zielmonat="{{ prev_month }}">‹</a>
+    <span class="leiste-monatsname">{{ summary.month | month_name }}</span>
+    <a class="btn klein" href="{{ url_for('show_month', month=next_month) }}" title="Nächster Monat" data-zielmonat="{{ next_month }}">›</a>
+  </div>
   <div class="neu-knoepfe">
     <a class="btn neu ausgabe" href="{{ url_for('new_form', typ='ausgabe', datum=default_date) }}">Ausgabe</a>
     <a class="btn neu einnahme" href="{{ url_for('new_form', typ='einnahme', datum=default_date) }}">Einnahme</a>
@@ -55,6 +63,12 @@ const bar = document.querySelector(".neu-leiste");
 const setBarHeight = () => document.documentElement.style.setProperty("--leiste-hoehe", bar.offsetHeight + "px");
 setBarHeight();
 window.addEventListener("resize", setBarHeight);
+
+// Once the month heading is out of view, the bar offers month switching and "back to top"
+new IntersectionObserver(([entry]) => {
+  bar.classList.toggle("abgekoppelt", !entry.isIntersecting && entry.boundingClientRect.top < 0);
+}).observe(document.querySelector(".monatsnav"));
+bar.querySelector(".nach-oben").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 
 document.querySelectorAll(".anzeige-optionen input").forEach(box => {
   const key = "zeige-" + box.dataset.option;

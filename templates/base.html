@@ -22,6 +22,7 @@
     <nav>
       <a href="{{ url_for('index') }}" {% if request.endpoint == 'show_month' %}class="aktiv"{% endif %}>Monat</a>
       <a href="{{ url_for('recurring') }}" {% if request.endpoint == 'recurring' %}class="aktiv"{% endif %}>Wiederkehrend</a>
+      <a href="{{ url_for('category_overview') }}" {% if request.endpoint == 'category_overview' %}class="aktiv"{% endif %}>Kategorien</a>
       {% if not g.user.ist_demo %}
       <a href="{{ url_for('auth.change_password') }}" {% if request.endpoint == 'auth.change_password' %}class="aktiv"{% endif %} title="Passwort ändern ({{ g.user.benutzername }})">🔑</a>
       {% endif %}

@@ -107,6 +107,19 @@ def _save_recurring(conn, form):
 
 # --- Routes ---------------------------------------------------------------------
 
+def _by_cat(entries, typ):
+    """Returns entries of `typ` grouped by category label, sorted by date."""
+    cats = fin.category_totals(entries, typ)
+    return {
+        c["kategorie"]: sorted(
+            [e for e in entries
+             if e["typ"] == typ
+             and ((e["kategorie"] or "").strip() or "Sonstiges") == c["kategorie"]],
+            key=lambda e: e["datum"],
+        )
+        for c in cats
+    }
+
 # --- Progressive web app ---------------------------------------------------------------
 
 @app.get("/sw.js")
@@ -342,6 +355,70 @@ def delete_recurring(rid):
     db.delete_recurring(conn, rid)
     flash("Wiederkehrende Buchung gelöscht.", "ok")
     return redirect(url_for("recurring"))
+
+
+@app.route("/kategorien/jahr")
+@app.route("/kategorien/jahr/<int:year>")
+def category_overview_year(year=None):
+    today = date.today()
+    if year is None:
+        year = today.year
+    conn, uid = db.get_db(), g.user["id"]
+    transactions = db.all_transactions(conn, uid)
+    recurring = db.all_recurring(conn, uid)
+    overrides = db.all_overrides(conn, uid)
+
+    all_entries = []
+    for mon in range(1, 13):
+        all_entries.extend(
+            fin.month_summary(transactions, recurring, f"{year:04d}-{mon:02d}", overrides)["entries"]
+        )
+
+    cat_expenses = fin.category_totals(all_entries, fin.EXPENSE)
+    cat_income = fin.category_totals(all_entries, fin.INCOME)
+
+    return render_template(
+        "kategorien_jahr.html",
+        year=year,
+        is_current_year=year == today.year,
+        prev_year=year - 1,
+        next_year=year + 1,
+        cat_expenses=cat_expenses,
+        total_expenses=sum(c["betrag_cent"] for c in cat_expenses),
+        expenses_by_cat=_by_cat(all_entries, fin.EXPENSE),
+        cat_income=cat_income,
+        total_income=sum(c["betrag_cent"] for c in cat_income),
+        income_by_cat=_by_cat(all_entries, fin.INCOME),
+    )
+
+
+@app.route("/kategorien")
+@app.route("/kategorien/<month>")
+def category_overview(month=None):
+    if month is None:
+        month = fin.current_month()
+    if not fin.is_valid_month(month):
+        abort(404)
+    conn, uid = db.get_db(), g.user["id"]
+    summary = fin.month_summary(db.all_transactions(conn, uid), db.all_recurring(conn, uid),
+                                month, db.all_overrides(conn, uid))
+    entries = summary["entries"]
+    cat_expenses = fin.category_totals(entries, fin.EXPENSE)
+    cat_income = fin.category_totals(entries, fin.INCOME)
+
+    return render_template(
+        "kategorien.html",
+        month=month,
+        is_current=month == fin.current_month(),
+        prev_month=fin.shift_month(month, -1),
+        next_month=fin.shift_month(month, 1),
+        cat_expenses=cat_expenses,
+        total_expenses=sum(c["betrag_cent"] for c in cat_expenses),
+        expenses_by_cat=_by_cat(entries, fin.EXPENSE),
+        cat_income=cat_income,
+        total_income=sum(c["betrag_cent"] for c in cat_income),
+        income_by_cat=_by_cat(entries, fin.INCOME),
+    )
 
 
 db.init_db()

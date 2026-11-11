@@ -181,6 +181,10 @@ def test_new_booking_page(client):
     assert "/buchung/neu?typ=ausgabe&amp;datum=" in month
     assert "/buchung/neu?typ=einnahme&amp;datum=" in month
     assert 'name="beschreibung"' not in month          # the form itself is no longer on the main page
+    # Sticky bar: month switcher and "back to top" for when the heading is scrolled away
+    bar = month[month.index('class="karte neu-leiste"'):month.index("</section>", month.index('class="karte neu-leiste"'))]
+    assert 'data-zielmonat="2026-10"' in bar and 'data-zielmonat="2026-12"' in bar
+    assert "November 2026" in bar and 'class="btn klein nach-oben"' in bar
 
     page = client.get("/buchung/neu?typ=einnahme&datum=2026-11-10").get_data(as_text=True)
     assert "Neue Einnahme" in page

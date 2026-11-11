@@ -317,7 +317,6 @@ html:not(.zeige-tagessaldo) .tageskopf th.tagessaldo > span { display: none; }
 body.ziehen, body.ziehen * { cursor: grabbing !important; user-select: none; }
 tr.wird-gezogen { opacity: 0.35; }
 .liste tbody.tag.ziel td, .liste tbody.tag.ziel th { background: rgba(47, 111, 237, 0.10); }
-.monatsnav .btn.ziel { border-color: var(--primaer); background: rgba(47, 111, 237, 0.10); }
 .zieh-geist {
   position: fixed;
   top: 0;
@@ -349,11 +348,23 @@ tr.wird-gezogen { opacity: 0.35; }
   z-index: 10;
   box-shadow: 0 4px 14px rgba(20, 24, 33, 0.08);
 }
-.neu-leiste .neu-knoepfe { grid-column: 2; justify-content: center; }
-.neu-leiste .anzeige-optionen { grid-column: 3; justify-self: end; }
+.neu-leiste .leiste-monat { grid-column: 1; grid-row: 1; justify-self: start; }
+.neu-leiste .neu-knoepfe { grid-column: 2; grid-row: 1; justify-content: center; }
+.neu-leiste .anzeige-optionen { grid-column: 3; grid-row: 1; justify-self: end; }
+.leiste-monat { display: flex; align-items: center; gap: 0.4rem; }
+.leiste-monatsname { font-weight: 600; white-space: nowrap; min-width: 9rem; text-align: center; }
+.nach-oben { display: inline-flex; align-items: center; justify-content: center; margin-right: 0.6rem; }
+/* Arrow and month switcher keep their space, so nothing jumps when they appear */
+.neu-leiste .leiste-monat { visibility: hidden; opacity: 0; transition: opacity 0.2s ease; }
+.neu-leiste.abgekoppelt .leiste-monat { visibility: visible; opacity: 1; }
+.monatsnav .btn.ziel, .leiste-monat .btn.ziel { border-color: var(--primaer); background: rgba(47, 111, 237, 0.10); }
 @media (max-width: 700px) {
+  /* Row 1: buttons. Row 2: display options, or while scrolled: arrow and month switcher */
   .neu-leiste { grid-template-columns: 1fr; top: 0; }
-  .neu-leiste .neu-knoepfe, .neu-leiste .anzeige-optionen { grid-column: 1; justify-self: center; }
+  .neu-leiste .neu-knoepfe { grid-column: 1; grid-row: 1; justify-self: center; }
+  .neu-leiste .anzeige-optionen { grid-column: 1; grid-row: 2; justify-self: center; }
+  .neu-leiste .leiste-monat { grid-column: 1; grid-row: 2; }
+  .neu-leiste.abgekoppelt .anzeige-optionen { visibility: hidden; }
 }
 .neu-knoepfe { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 .btn.neu { font-weight: 600; padding: 0.6rem 1.3rem; color: #000; border-color: transparent; }
@@ -379,3 +390,107 @@ body:has(.liste tbody.tag:target) main { padding-bottom: calc(100vh - var(--leis
 .neu-seite h2 { text-align: center; }
 .neu-seite .neu-formular { margin: 0 auto; }
 .neu-seite .knopfreihe { justify-content: center; }
+
+/* Category expense overview */
+.kategorie-liste { display: flex; flex-direction: column; gap: 0.55rem; }
+.kategorie-details { border-radius: 6px; }
+.kategorie-details[open] { background: var(--bg); padding: 0.5rem 0.6rem; }
+.kategorie-details summary { list-style: none; cursor: pointer; }
+.kategorie-details summary::-webkit-details-marker { display: none; }
+.kategorie-zeile {
+  display: grid;
+  grid-template-columns: 1.2rem minmax(7rem, 10rem) 1fr auto auto;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+.kategorie-zeile::before {
+  content: "▶";
+  font-size: 0.6rem;
+  color: var(--gedimmt);
+  transition: transform 0.15s ease;
+}
+.kategorie-details[open] > summary .kategorie-zeile::before { transform: rotate(90deg); }
+.kategorie-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kategorie-balken-wrap {
+  background: var(--karte);
+  border-radius: 4px;
+  height: 0.55rem;
+  overflow: hidden;
+}
+.kategorie-details[open] .kategorie-balken-wrap { background: var(--karte); }
+.kategorie-balken {
+  height: 100%;
+  background: rgba(197, 48, 48, 0.50);
+  border-radius: 4px;
+  min-width: 2px;
+}
+.kategorie-balken.einnahme { background: rgba(19, 138, 75, 0.50); }
+.kategorie-wert { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.kategorie-pct { white-space: nowrap; min-width: 3.5rem; text-align: right; }
+.kategorie-eintraege {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--rand);
+}
+.kategorie-eintrag {
+  display: grid;
+  grid-template-columns: 7rem 1fr auto;
+  align-items: baseline;
+  gap: 0.3rem 0.75rem;
+  padding: 0.4rem 0.2rem;
+  border-bottom: 1px solid var(--rand);
+}
+.kategorie-eintrag:last-child { border-bottom: none; }
+.kategorie-eintrag-beschreibung { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 600px) {
+  .kategorie-zeile {
+    grid-template-columns: 1.2rem 1fr auto auto;
+    grid-template-rows: auto auto;
+  }
+  .kategorie-name { grid-column: 2; }
+  .kategorie-balken-wrap { grid-column: 2 / -1; grid-row: 2; }
+  .kategorie-eintrag { grid-template-columns: 1fr auto; }
+  .kategorie-eintrag > .gedimmt { grid-column: 1 / -1; }
+}
+
+/* Phones: nothing may be wider than the screen. Otherwise the browser zooms the whole page
+   out to fit the widest element, and all text becomes tiny. */
+@media (max-width: 600px) {
+  main { padding: 1rem 0.75rem; }
+  .karte { padding: 0.8rem 0.75rem; }
+  .karte:not(.neu-leiste) { overflow-x: auto; }   /* last resort: scroll inside the card, not the page */
+
+  .liste th, .liste td { padding: 0.5rem 0.25rem; }
+  .tageskopf th.tagesname { white-space: normal; }
+  .betrag { min-width: 8ch; padding: 0.15rem 0.4rem; font-size: 0.95rem; }
+  .symbolleiste { gap: 0; }
+  .icon-btn, button.link.icon-btn { padding: 0.25rem; }
+  .aktionen form { margin-left: 0; }
+
+  /* Page "Wiederkehrend": one block per series instead of a wide table */
+  .liste:has(> thead) thead { display: none; }
+  .liste:has(> thead), .liste:has(> thead) tbody, .liste:has(> thead) tr, .liste:has(> thead) td { display: block; width: 100%; }
+  .liste:has(> thead) tr { padding: 0.6rem 0; border-bottom: 1px solid var(--rand); }
+  .liste:has(> thead) td { border: none; padding: 0.15rem 0; text-align: left; }
+  .liste:has(> thead) td.rechts { text-align: left; }
+  .liste:has(> thead) td.aktionen { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1rem; white-space: normal; padding-top: 0.4rem; }
+}
+
+@media (max-width: 600px) {
+  /* Top bar: brand and menu may wrap to two lines instead of pushing the page wider */
+  .topbar { flex-wrap: wrap; gap: 0.3rem 0.8rem; padding: 0.6rem 0.75rem; }
+  .brand { white-space: nowrap; }
+  .topbar nav { flex-wrap: wrap; row-gap: 0.2rem; }
+  .topbar nav a, .topbar .abmelden { margin-left: 0.7rem; }
+}
+
+@media (max-width: 600px) {
+  /* Four tiles in a 2x2 grid instead of one long column */
+  .kacheln { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+  .kachel { padding: 0.7rem 0.8rem; }
+  .kachel .wert { font-size: 1.15rem; }
+  .kachel.haupt .wert { font-size: 1.3rem; }
+}

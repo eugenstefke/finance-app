@@ -234,6 +234,29 @@ def upcoming_occurrences(r, overrides, today: str, limit: int | None = None) -> 
     return result if limit is None else result[:limit]
 
 
+# --- Category overview -----------------------------------------------------------
+
+def category_totals(entries, typ: str) -> list[dict]:
+    """Groups entries of the given type by category; empty category → 'Sonstiges'.
+
+    Returns list of {kategorie, betrag_cent} sorted by amount descending.
+    """
+    totals: dict[str, int] = {}
+    for e in entries:
+        if e["typ"] != typ:
+            continue
+        cat = (e["kategorie"] or "").strip() or "Sonstiges"
+        totals[cat] = totals.get(cat, 0) + e["betrag_cent"]
+    return sorted(
+        [{"kategorie": k, "betrag_cent": v} for k, v in totals.items()],
+        key=lambda x: x["kategorie"].lower(),
+    )
+
+
+def category_expenses(entries) -> list[dict]:
+    return category_totals(entries, EXPENSE)
+
+
 # --- Monthly overview ------------------------------------------------------------
 
 _OVERRIDE_FIELDS = ("datum", "beschreibung", "kategorie", "betrag_cent", "typ")

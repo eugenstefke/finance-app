@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Kategorien {{ month | month_name }} · Finanzen{% endblock %}
+
+{% macro kategorie_liste(cats, entries_by_cat, total, balken_klasse) %}
+<div class="kategorie-liste">
+  {% for cat in cats %}
+  {% set pct = (cat.betrag_cent / total * 100) | round(1) %}
+  <details class="kategorie-details">
+    <summary class="kategorie-zeile">
+      <span class="kategorie-name">{{ cat.kategorie }}</span>
+      <div class="kategorie-balken-wrap" title="{{ pct }}%">
+        <div class="kategorie-balken {{ balken_klasse }}" style="width: {{ pct }}%"></div>
+      </div>
+      <span class="kategorie-wert">{{ cat.betrag_cent | eur }}</span>
+      <span class="gedimmt klein kategorie-pct">{{ pct }}%</span>
+    </summary>
+    <div class="kategorie-eintraege">
+      {% for e in entries_by_cat[cat.kategorie] %}
+      <div class="kategorie-eintrag">
+        <span class="gedimmt klein">{{ e.datum | date }}</span>
+        <span class="kategorie-eintrag-beschreibung">{{ e.beschreibung }}{% if e.is_recurring %} <span class="gedimmt klein">· {{ e.intervall_monate | rhythm }}</span>{% endif %}</span>
+        <span class="betrag {{ 'plus' if balken_klasse == 'einnahme' else 'minus' }}">{{ '+' if balken_klasse == 'einnahme' else '−' }} {{ e.betrag_cent | eur }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="monatsnav">
+  <a class="btn" href="{{ url_for('category_overview', month=prev_month) }}" title="Vormonat">‹</a>
+  <h1>{{ month | month_name }}</h1>
+  <a class="btn" href="{{ url_for('category_overview', month=next_month) }}" title="Nächster Monat">›</a>
+  {% if not is_current %}
+    <a class="btn klein" href="{{ url_for('category_overview') }}">Heute</a>
+  {% endif %}
+  <a class="btn klein" href="{{ url_for('category_overview_year', year=month[:4]|int) }}">Jahresansicht</a>
+</div>
+
+<section class="kacheln">
+  <div class="kachel haupt negativ">
+    <span class="label">Ausgaben gesamt</span>
+    <span class="wert minus">{{ total_expenses | eur }}</span>
+  </div>
+  <div class="kachel haupt positiv">
+    <span class="label">Einnahmen gesamt</span>
+    <span class="wert plus">{{ total_income | eur }}</span>
+  </div>
+</section>
+
+{% if cat_expenses %}
+<section class="karte">
+  <h2>Ausgaben nach Kategorie</h2>
+  {{ kategorie_liste(cat_expenses, expenses_by_cat, total_expenses, 'ausgabe') }}
+</section>
+{% endif %}
+
+{% if cat_income %}
+<section class="karte">
+  <h2>Einnahmen nach Kategorie</h2>
+  {{ kategorie_liste(cat_income, income_by_cat, total_income, 'einnahme') }}
+</section>
+{% endif %}
+
+{% if not cat_expenses and not cat_income %}
+  <p class="gedimmt">Keine Buchungen in {{ month | month_name }}.</p>
+{% endif %}
+{% endblock %}
